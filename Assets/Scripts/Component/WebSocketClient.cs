@@ -5,7 +5,7 @@ using System.Net.WebSockets;
 using System.Threading;
 using System.Text;
 using System.Threading.Tasks;
-using SaveLoadSystem.Utility;
+using Component;
 using Unity.Plastic.Newtonsoft.Json;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 
@@ -21,16 +21,17 @@ namespace LockstepNetworking
         
         //TODO: various type support: Instantiation of Objects & it might be neccessary to keep references over the server?
         //TODO: reconnect
-        
+
+        [SerializeField] private PrefabRegistry prefabRegistry;
         [SerializeField] private double keepAliveInterval = 20;
         [SerializeField] private string lobbyName = "lobbyName";
         [SerializeField] private int lobbyCapacity = 4;
 
+        public static HashSet<NetworkConnection> LobbyConnections { get; private set; } = new();
+        public static NetworkConnection LocalConnection { get; private set; }
+
         private ClientWebSocket _webSocket;
         private CancellationTokenSource _cancellationToken;
-        
-        //TODO: place somewhere else where multi scene setups can be supported
-        private Dictionary<string, NetworkObject> _networkObjectLookup;
 
         private const string ErrorResponse = "errorResponse";
         
@@ -52,16 +53,6 @@ namespace LockstepNetworking
         
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
-
-        private void Start()
-        {
-            _networkObjectLookup = new Dictionary<string, NetworkObject>();
-            foreach (var networkObject in UnityUtility.FindObjectsOfTypeInScene<NetworkObject>(gameObject.scene, true))
-            {
-                Debug.Log("o/");
-                _networkObjectLookup.Add(networkObject.SceneGuid, networkObject);
-            }
-        }
 
         [ContextMenu("Connect To Server")]
         public async void ConnectToServer()
@@ -145,6 +136,8 @@ namespace LockstepNetworking
                                 break;
                             case ConnectedResponse:
                                 Debug.Log($"{ConnectedResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+                                var connectedData = JsonConvert.DeserializeObject<JoinLobbyBroadcastData>(receivedMessage.message);
+                                LocalConnection = new NetworkConnection(connectedData.clientID);
                                 break;
                             case FetchLobbyResponse:
                                 Debug.Log($"{FetchLobbyResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
@@ -154,20 +147,32 @@ namespace LockstepNetworking
                                 break;
                             case JoinLobbyClientResponse:
                                 Debug.Log($"{JoinLobbyClientResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                var obj = JsonConvert.DeserializeObject<LobbyJoinedData>(receivedMessage.message);
-                                foreach (var objLockstepEvent in obj.lobbyData)
+                                var joinLobbyClientData = JsonConvert.DeserializeObject<JoinLobbyClientData>(receivedMessage.message);
+                                foreach (var clientID in joinLobbyClientData.clientIDs)
+                                {
+                                    LobbyConnections.Add(new NetworkConnection(clientID));
+                                }
+                                
+                                foreach (var objLockstepEvent in joinLobbyClientData.lobbyData)
                                 {
                                     DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequest>(objLockstepEvent)).PerformEvent();
                                 }
                                 break;
+                            
                             case JoinLobbyBroadcastResponse:
                                 Debug.Log($"{JoinLobbyBroadcastResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+                                var joinLobbyBroadcastData = JsonConvert.DeserializeObject<JoinLobbyBroadcastData>(receivedMessage.message);
+                                LobbyConnections.Add(new NetworkConnection(joinLobbyBroadcastData.clientID));
                                 break;
+                            
                             case LeaveLobbyClientResponse:
                                 Debug.Log($"{LeaveLobbyClientResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+                                LobbyConnections.Clear();
                                 break;
                             case LeaveLobbyBroadcastResponse:
                                 Debug.Log($"{LeaveLobbyBroadcastResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+                                var leaveLobbyBroadcastData = JsonConvert.DeserializeObject<LeaveLobbyBroadcastData>(receivedMessage.message);
+                                LobbyConnections.RemoveWhere(x => x.ConnectionID == leaveLobbyBroadcastData.clientID);
                                 break;
                             case EventResponse:
                                 var instance = DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequest>(receivedMessage.message));
@@ -271,13 +276,29 @@ namespace LockstepNetworking
         {
             if (obj is NetworkObject networkObject)
             {
-                return networkObject.SceneGuid;
+                if (!string.IsNullOrEmpty(networkObject.SceneGuid))
+                {
+                    return networkObject.SceneGuid;
+                }
+
+                if (!string.IsNullOrEmpty(networkObject.PrefabGuid))
+                {
+                    return networkObject.PrefabGuid;
+                }
+
+                Debug.LogError($"{typeof(NetworkObject)} neither has a {nameof(networkObject.SceneGuid)} nor a {networkObject.PrefabGuid} to identify it! Please make sure it has one!");
+                return string.Empty;
+            }
+
+            if (obj is NetworkConnection networkConnection)
+            {
+                return networkConnection.ConnectionID;
             }
 
             return obj;
         }
         
-        public void RaiseLockstepEvent<T>(T lockstepEvent) where T : struct, ILockstepEvent
+        public void RaiseLockstepEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
         {
             var fieldInfos = lockstepEvent.GetType().GetFields();
             var propertyInfos = lockstepEvent.GetType().GetProperties();
@@ -286,12 +307,14 @@ namespace LockstepNetworking
             
             foreach (var fieldInfo in fieldInfos)
             {
-                jObject.Add(JToken.FromObject(ConvertToSerializable(fieldInfo.GetValue(lockstepEvent))));
+                var serializedObj = ConvertToSerializable(fieldInfo.GetValue(lockstepEvent));
+                jObject.Add(JToken.FromObject(serializedObj));
             }
             
             foreach (var propertyInfo in propertyInfos)
             {
-                jObject.Add(JToken.FromObject(ConvertToSerializable(propertyInfo.GetValue(lockstepEvent))));
+                var serializedObj = ConvertToSerializable(propertyInfo.GetValue(lockstepEvent));
+                jObject.Add(JToken.FromObject(serializedObj));
             }
             
             var rpcRequest = new RPCRequest
@@ -306,7 +329,7 @@ namespace LockstepNetworking
                 data = rpcRequest
             };
             
-            string jsonMessage = JsonConvert.SerializeObject(message);
+            var jsonMessage = JsonConvert.SerializeObject(message);
             SendMessageToServer(jsonMessage);
         }
         
@@ -314,14 +337,33 @@ namespace LockstepNetworking
         {
             if (targetType == typeof(NetworkObject))
             {
-                return _networkObjectLookup.GetValueOrDefault(obj.ToObject<string>());
+                var id = obj.ToObject<string>();
+
+                if (NetworkObject.NetworkObjects.TryGetValue(id, out NetworkObject networkObject))
+                {
+                    return networkObject;
+                }
+                
+                if (prefabRegistry.TryGetPrefab(id, out networkObject))
+                {
+                    return networkObject;
+                }
+                
+                Debug.LogWarning($"Couldn't identify any {typeof(NetworkObject)} with id {id}.");
+                return null;
+            }
+            
+            if (targetType == typeof(NetworkConnection))
+            {
+                return new NetworkConnection(obj.ToObject<string>());
             }
 
             return obj.ToObject(targetType);
         }
         
-        private ILockstepEvent DeserializeLockstepEvent(RPCRequest rpcRequest)
+        private INetworkEvent DeserializeLockstepEvent(RPCRequest rpcRequest)
         {
+            Debug.Log(rpcRequest.Data.ToString());
             var type = Type.GetType(rpcRequest.lockstepType);
             if (type == null) return null;
 
@@ -374,7 +416,33 @@ namespace LockstepNetworking
                 propertyInfo.SetValue(instance, propertyObjects[i]);
             }
 
-            return instance as ILockstepEvent;
+            return instance as INetworkEvent;
+        }
+    }
+
+    public struct NetworkConnection : IEquatable<NetworkConnection>
+    {
+        public string ConnectionID { get; }
+        public bool IsValid => !string.IsNullOrEmpty(ConnectionID);
+        
+        public NetworkConnection(string connectionID)
+        {
+            ConnectionID = connectionID;
+        }
+
+        public bool Equals(NetworkConnection other)
+        {
+            return ConnectionID == other.ConnectionID;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is NetworkConnection other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return (ConnectionID != null ? ConnectionID.GetHashCode() : 0);
         }
     }
 
@@ -387,10 +455,28 @@ namespace LockstepNetworking
     }
     
     [Serializable]
-    public struct LobbyJoinedData
+    public struct JoinLobbyClientData
     {
         public string[] clientIDs;
         public string[] lobbyData;
+    }
+    
+    [Serializable]
+    public struct JoinLobbyBroadcastData
+    {
+        public string clientID;
+    }
+    
+    [Serializable]
+    public struct ConnectedData
+    {
+        public string clientID;
+    }
+    
+    [Serializable]
+    public struct LeaveLobbyBroadcastData
+    {
+        public string clientID;
     }
     
     [Serializable]
@@ -400,12 +486,12 @@ namespace LockstepNetworking
         public JArray Data;
     }
 
-    public interface ILockstepEvent
+    public interface INetworkEvent
     {
         public void PerformEvent();
     }
 
-    public readonly struct EventData : ILockstepEvent
+    public readonly struct EventData : INetworkEvent
     {
         public readonly NetworkObject _networkObject;
 

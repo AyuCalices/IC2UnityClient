@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using SaveLoadSystem.Utility;
 using UnityEditor;
 using UnityEngine;
@@ -9,6 +10,8 @@ public class NetworkObject : MonoBehaviour, ICreateGameObjectHierarchy, IChangeC
     private string _resetBufferSceneGuid;
 
     [SerializeField] private string prefabPath;
+
+    public static Dictionary<string, NetworkObject> NetworkObjects { get; } = new();
 
     public string SceneGuid => serializeFieldSceneGuid;
     public string PrefabGuid => prefabPath;
@@ -35,7 +38,6 @@ public class NetworkObject : MonoBehaviour, ICreateGameObjectHierarchy, IChangeC
     {
         if (Application.isPlaying) return;
         
-        ResetSceneGuid();
         SetupAll();
     }
     
@@ -102,7 +104,22 @@ public class NetworkObject : MonoBehaviour, ICreateGameObjectHierarchy, IChangeC
     
     private void SetupSceneGuid()
     {
-        if (string.IsNullOrEmpty(serializeFieldSceneGuid) && string.IsNullOrEmpty(_resetBufferSceneGuid))
+        if (!string.IsNullOrEmpty(serializeFieldSceneGuid))
+        {
+            if (NetworkObjects.TryGetValue(serializeFieldSceneGuid, out NetworkObject networkObject))
+            {
+                if (networkObject != this)
+                {
+                    SetSceneGuidGroup(Guid.NewGuid().ToString());
+                    NetworkObjects.Add(serializeFieldSceneGuid, this);
+                }
+            }
+            else
+            {
+                NetworkObjects.Add(serializeFieldSceneGuid, this);
+            }
+        }
+        else
         {
             SetSceneGuidGroup(Guid.NewGuid().ToString());
         }

@@ -182,6 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea5079297458c984fb3e2f8515fa6ea3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
   text: hello 1
 --- !u!1 &323713720
 GameObject:
@@ -213,6 +214,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea5079297458c984fb3e2f8515fa6ea3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
   text: hello 3
 --- !u!114 &323713722
 MonoBehaviour:
@@ -381,6 +383,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f6881adf7ed27846be72421444f0d61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  prefabRegistry: {fileID: 11400000, guid: 6f20f317057f584499207f5fde8d001f, type: 2}
   keepAliveInterval: 20
   lobbyName: lobbyName
   lobbyCapacity: 4
@@ -506,6 +509,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea5079297458c984fb3e2f8515fa6ea3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
   text: hello 2
 --- !u!114 &1813656627
 MonoBehaviour:
