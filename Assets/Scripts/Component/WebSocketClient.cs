@@ -26,9 +26,12 @@ namespace LockstepNetworking
         [SerializeField] private double keepAliveInterval = 20;
         [SerializeField] private string lobbyName = "lobbyName";
         [SerializeField] private int lobbyCapacity = 4;
-
-        public static HashSet<NetworkConnection> LobbyConnections { get; private set; } = new();
-        public static NetworkConnection LocalConnection { get; private set; }
+        
+        
+        public Dictionary<string, NetworkObject> NetworkObjects { get; } = new();   //must be non static!
+        public HashSet<NetworkConnection> LobbyConnections { get; private set; } = new();
+        public NetworkConnection LocalConnection { get; private set; }
+        
 
         private ClientWebSocket _webSocket;
         private CancellationTokenSource _cancellationToken;
@@ -297,8 +300,16 @@ namespace LockstepNetworking
 
             return obj;
         }
+
+        public void RequestRaiseEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
+        {
+            if (lockstepEvent.ValidateRequest())
+            {
+                RaiseEvent(lockstepEvent);
+            }
+        }
         
-        public void RaiseLockstepEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
+        private void RaiseEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
         {
             var fieldInfos = lockstepEvent.GetType().GetFields();
             var propertyInfos = lockstepEvent.GetType().GetProperties();
@@ -339,7 +350,7 @@ namespace LockstepNetworking
             {
                 var id = obj.ToObject<string>();
 
-                if (NetworkObject.NetworkObjects.TryGetValue(id, out NetworkObject networkObject))
+                if (NetworkObjects.TryGetValue(id, out NetworkObject networkObject))
                 {
                     return networkObject;
                 }
@@ -363,7 +374,6 @@ namespace LockstepNetworking
         
         private INetworkEvent DeserializeLockstepEvent(RPCRequest rpcRequest)
         {
-            Debug.Log(rpcRequest.Data.ToString());
             var type = Type.GetType(rpcRequest.lockstepType);
             if (type == null) return null;
 
@@ -373,34 +383,15 @@ namespace LockstepNetworking
             var fieldObjects = new object[fieldInfos.Length];
             for (var i = 0; i < fieldInfos.Length; i++)
             {
-                var fieldInfo = fieldInfos[i];
-                
-                var obj = ConvertFromSerializable(fieldInfo.FieldType, rpcRequest.Data[i]);
-                if (obj == null)
-                {
-                    Debug.LogError("Error occured during deserialization!");
-                    return null;
-                }
-
-                fieldObjects[i] = obj;
+                fieldObjects[i] = ConvertFromSerializable(fieldInfos[i].FieldType, rpcRequest.Data[i]);
             }
             
             var propertyInfos = instance.GetType().GetProperties();
             var propertyObjects = new object[propertyInfos.Length];
             for (var i = 0; i < propertyInfos.Length; i++)
             {
-                var propertyInfo = propertyInfos[i];
-                
-                var obj = ConvertFromSerializable(propertyInfo.PropertyType, rpcRequest.Data[i]);
-                if (obj == null)
-                {
-                    Debug.LogError("Error occured during deserialization!");
-                    return null;
-                }
-
-                propertyObjects[i] = obj;
+                propertyObjects[i] = ConvertFromSerializable(propertyInfos[i].PropertyType, rpcRequest.Data[i]);
             }
-            
             
             for (var i = 0; i < fieldInfos.Length; i++)
             {
@@ -420,19 +411,22 @@ namespace LockstepNetworking
         }
     }
 
+    [Serializable]
     public struct NetworkConnection : IEquatable<NetworkConnection>
     {
-        public string ConnectionID { get; }
-        public bool IsValid => !string.IsNullOrEmpty(ConnectionID);
+        public string ConnectionID => _connectionID;
+        private string _connectionID;
+        
+        public bool IsValid => !string.IsNullOrEmpty(_connectionID);
         
         public NetworkConnection(string connectionID)
         {
-            ConnectionID = connectionID;
+            _connectionID = connectionID;
         }
 
         public bool Equals(NetworkConnection other)
         {
-            return ConnectionID == other.ConnectionID;
+            return _connectionID == other._connectionID;
         }
 
         public override bool Equals(object obj)
@@ -442,7 +436,7 @@ namespace LockstepNetworking
 
         public override int GetHashCode()
         {
-            return (ConnectionID != null ? ConnectionID.GetHashCode() : 0);
+            return _connectionID != null ? _connectionID.GetHashCode() : 0;
         }
     }
 
@@ -488,6 +482,7 @@ namespace LockstepNetworking
 
     public interface INetworkEvent
     {
+        public bool ValidateRequest();
         public void PerformEvent();
     }
 
@@ -498,6 +493,11 @@ namespace LockstepNetworking
         public EventData(NetworkObject networkObject)
         {
             _networkObject = networkObject;
+        }
+
+        public bool ValidateRequest()
+        {
+            return true;
         }
 
         public void PerformEvent()
