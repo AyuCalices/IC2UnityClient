@@ -1,6 +1,6 @@
-namespace SaveLoadSystem.Utility
+namespace Identification
 {
-    public interface IChangeComponentProperties
+    internal interface IChangeComponentProperties
     {
         public void OnChangeComponentProperties();
     }

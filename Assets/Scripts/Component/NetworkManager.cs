@@ -1,17 +1,21 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using System.Net.WebSockets;
-using System.Threading;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using Component;
+using Core;
+using DataTransferObject;
+using Identification;
+using NetworkEvent;
 using Unity.Plastic.Newtonsoft.Json;
 using Unity.Plastic.Newtonsoft.Json.Linq;
+using UnityCommunity.UnitySingleton;
+using UnityEngine;
 
-namespace LockstepNetworking
+namespace Component
 {
-    public class WebSocketClient : MonoBehaviour
+    public class NetworkManager : PersistentMonoSingleton<NetworkManager>
     {
         //write about cecil -> to complex, because of that -> delegate
         //a way to correctly identify every client -> test
@@ -57,12 +61,18 @@ namespace LockstepNetworking
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
 
+        protected override void Awake()
+        {
+            base.Awake();
+            
+            _cancellationToken = new CancellationTokenSource();
+        }
+
         [ContextMenu("Connect To Server")]
         public async void ConnectToServer()
         {
             _webSocket = new ClientWebSocket();
             _webSocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(keepAliveInterval);
-            _cancellationToken = new CancellationTokenSource();
             
             try
             {
@@ -78,7 +88,7 @@ namespace LockstepNetworking
                 Debug.LogError($"WebSocket error during connection: {ex.Message}");
             }
         }
-        
+
         private void OnApplicationQuit()
         {
             try
@@ -158,7 +168,7 @@ namespace LockstepNetworking
                                 
                                 foreach (var objLockstepEvent in joinLobbyClientData.lobbyData)
                                 {
-                                    DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequest>(objLockstepEvent)).PerformEvent();
+                                    DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequestData>(objLockstepEvent)).PerformEvent();
                                 }
                                 break;
                             
@@ -178,7 +188,7 @@ namespace LockstepNetworking
                                 LobbyConnections.RemoveWhere(x => x.ConnectionID == leaveLobbyBroadcastData.clientID);
                                 break;
                             case EventResponse:
-                                var instance = DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequest>(receivedMessage.message));
+                                var instance = DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequestData>(receivedMessage.message));
                                 instance.PerformEvent();
                                 // Handle the data as needed
                                 break;
@@ -267,13 +277,6 @@ namespace LockstepNetworking
             string jsonMessage = JsonConvert.SerializeObject(leaveMessage);
             SendMessageToServer(jsonMessage);
         }
-        
-        [ContextMenu("Raise Event")]
-        private void RaiseEvent()
-        {
-            //var eventData = new EventData(UnityEngine.Random.Range(0, int.MaxValue), "hello");
-            //RaiseLockstepEvent(eventData);
-        }
 
         private object ConvertToSerializable(object obj)
         {
@@ -301,11 +304,37 @@ namespace LockstepNetworking
             return obj;
         }
 
-        public void RequestRaiseEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
+        public bool RequestRaiseEvent<T>(T lockstepEvent, Action onBeforeValidEvent = null) where T : struct, INetworkEvent
         {
             if (lockstepEvent.ValidateRequest())
             {
+                onBeforeValidEvent?.Invoke();
                 RaiseEvent(lockstepEvent);
+                return true;
+            }
+
+            return false;
+        }
+        
+        public void NetworkInstantiate(NetworkObject networkObject)
+        {
+            var newNetworkObject = Instantiate(networkObject);
+            var newID = newNetworkObject.SceneGuid;
+        
+            var instantiationEvent = new InstantiateEvent(networkObject, newID, LocalConnection);
+            RequestRaiseEvent(instantiationEvent);
+
+            newNetworkObject.OnNetworkInstantiate();
+        }
+        
+        public void NetworkDestroy(NetworkObject networkObject)
+        {
+            if (networkObject.IsUnityNull() || string.IsNullOrEmpty(networkObject.SceneGuid)) return;
+        
+            var instantiationEvent = new DestroyEvent(networkObject);
+            if (RequestRaiseEvent(instantiationEvent, () => Destroy(networkObject.gameObject)))
+            {
+                networkObject.OnNetworkDestroy();
             }
         }
         
@@ -328,7 +357,7 @@ namespace LockstepNetworking
                 jObject.Add(JToken.FromObject(serializedObj));
             }
             
-            var rpcRequest = new RPCRequest
+            var rpcRequest = new RPCRequestData
             {
                 lockstepType = lockstepEvent.GetType().AssemblyQualifiedName,
                 Data = jObject
@@ -372,9 +401,9 @@ namespace LockstepNetworking
             return obj.ToObject(targetType);
         }
         
-        private INetworkEvent DeserializeLockstepEvent(RPCRequest rpcRequest)
+        private INetworkEvent DeserializeLockstepEvent(RPCRequestData rpcRequestData)
         {
-            var type = Type.GetType(rpcRequest.lockstepType);
+            var type = Type.GetType(rpcRequestData.lockstepType);
             if (type == null) return null;
 
             var instance = Activator.CreateInstance(type);
@@ -383,14 +412,14 @@ namespace LockstepNetworking
             var fieldObjects = new object[fieldInfos.Length];
             for (var i = 0; i < fieldInfos.Length; i++)
             {
-                fieldObjects[i] = ConvertFromSerializable(fieldInfos[i].FieldType, rpcRequest.Data[i]);
+                fieldObjects[i] = ConvertFromSerializable(fieldInfos[i].FieldType, rpcRequestData.Data[i]);
             }
             
             var propertyInfos = instance.GetType().GetProperties();
             var propertyObjects = new object[propertyInfos.Length];
             for (var i = 0; i < propertyInfos.Length; i++)
             {
-                propertyObjects[i] = ConvertFromSerializable(propertyInfos[i].PropertyType, rpcRequest.Data[i]);
+                propertyObjects[i] = ConvertFromSerializable(propertyInfos[i].PropertyType, rpcRequestData.Data[i]);
             }
             
             for (var i = 0; i < fieldInfos.Length; i++)
@@ -408,101 +437,6 @@ namespace LockstepNetworking
             }
 
             return instance as INetworkEvent;
-        }
-    }
-
-    [Serializable]
-    public struct NetworkConnection : IEquatable<NetworkConnection>
-    {
-        public string ConnectionID => _connectionID;
-        private string _connectionID;
-        
-        public bool IsValid => !string.IsNullOrEmpty(_connectionID);
-        
-        public NetworkConnection(string connectionID)
-        {
-            _connectionID = connectionID;
-        }
-
-        public bool Equals(NetworkConnection other)
-        {
-            return _connectionID == other._connectionID;
-        }
-
-        public override bool Equals(object obj)
-        {
-            return obj is NetworkConnection other && Equals(other);
-        }
-
-        public override int GetHashCode()
-        {
-            return _connectionID != null ? _connectionID.GetHashCode() : 0;
-        }
-    }
-
-    [Serializable]
-    public struct ReceivedMessage
-    {
-        public string type;    // 'success', 'error', 'info', 'data'
-        public string reason;  // Specific reason (e.g., 'LOBBY_NOT_FOUND')
-        public string message; // Human-readable message
-    }
-    
-    [Serializable]
-    public struct JoinLobbyClientData
-    {
-        public string[] clientIDs;
-        public string[] lobbyData;
-    }
-    
-    [Serializable]
-    public struct JoinLobbyBroadcastData
-    {
-        public string clientID;
-    }
-    
-    [Serializable]
-    public struct ConnectedData
-    {
-        public string clientID;
-    }
-    
-    [Serializable]
-    public struct LeaveLobbyBroadcastData
-    {
-        public string clientID;
-    }
-    
-    [Serializable]
-    public class RPCRequest
-    {
-        public string lockstepType;
-        public JArray Data;
-    }
-
-    public interface INetworkEvent
-    {
-        public bool ValidateRequest();
-        public void PerformEvent();
-    }
-
-    public readonly struct EventData : INetworkEvent
-    {
-        public readonly NetworkObject _networkObject;
-
-        public EventData(NetworkObject networkObject)
-        {
-            _networkObject = networkObject;
-        }
-
-        public bool ValidateRequest()
-        {
-            return true;
-        }
-
-        public void PerformEvent()
-        {
-            Debug.Log(_networkObject.GetComponent<IdentificationTest>().text);
         }
     }
 }

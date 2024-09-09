@@ -1,6 +1,8 @@
 using System;
-using LockstepNetworking;
-using SaveLoadSystem.Utility;
+using Core;
+using Core.Callbacks;
+using Identification;
+using NetworkEvent;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,7 +21,9 @@ namespace Component
         public string SceneGuid => serializeFieldSceneGuid;
         public string PrefabGuid => prefabPath;
         public bool HasOwner => Owner.IsValid;
+
         
+        #region Unity Lifecycle
 
         private void Reset()
         {
@@ -38,42 +42,50 @@ namespace Component
             ApplyScriptReloadBuffer();
             SetupEditorAll();
         }
-    
-        public void OnCreateGameObjectHierarchy()
+
+        #endregion
+
+        #region Internal Interfaces
+
+        void ICreateGameObjectHierarchy.OnCreateGameObjectHierarchy()
         {
             if (Application.isPlaying) return;
         
             SetupEditorAll();
         }
     
-        public void OnChangeGameObjectStructure()
+        void IChangeGameObjectStructure.OnChangeGameObjectStructure()
         {
             if (Application.isPlaying) return;
         
             SetupEditorAll();
         }
     
-        public void OnChangeComponentProperties()
+        void IChangeComponentProperties.OnChangeComponentProperties()
         {
             if (Application.isPlaying) return;
         
             SetupEditorAll();
         }
 
-        public void OnChangeGameObjectProperties()
+        void IChangeGameObjectProperties.OnChangeGameObjectProperties()
         {
             if (Application.isPlaying) return;
         
             SetupEditorAll();
         }
     
-        public void OnChangeGameObjectStructureHierarchy()
+        void IChangeGameObjectStructureHierarchy.OnChangeGameObjectStructureHierarchy()
         {
             if (Application.isPlaying) return;
         
             SetupEditorAll();
         }
-    
+
+        #endregion
+
+        #region Private
+
         /// <summary>
         /// If a Component get's resetted, all Serialize Field values are lost. This method will reapply the lost values
         /// for the Serialize Fields with the Reset Buffer. This prevents loosing the original guid.
@@ -95,21 +107,21 @@ namespace Component
         
         private void SetupSceneGuid()
         {
-            var websocketsClient = FindObjectOfType<WebSocketClient>(true);
+            var networkManager = NetworkManager.Instance;
             
             if (!string.IsNullOrEmpty(serializeFieldSceneGuid))
             {
-                if (websocketsClient.NetworkObjects.TryGetValue(serializeFieldSceneGuid, out NetworkObject networkObject))
+                if (networkManager.NetworkObjects.TryGetValue(serializeFieldSceneGuid, out NetworkObject networkObject))
                 {
                     if (networkObject != this)
                     {
                         SetSceneGuidGroup(Guid.NewGuid().ToString());
-                        websocketsClient.NetworkObjects.Add(serializeFieldSceneGuid, this);
+                        networkManager.NetworkObjects.Add(serializeFieldSceneGuid, this);
                     }
                 }
                 else
                 {
-                    websocketsClient.NetworkObjects.Add(serializeFieldSceneGuid, this);
+                    networkManager.NetworkObjects.Add(serializeFieldSceneGuid, this);
                 }
             }
             else
@@ -136,47 +148,7 @@ namespace Component
         {
             SetSceneGuidGroup("");
         }
-
-        public void SetSceneGuidGroup(string guid)
-        {
-            serializeFieldSceneGuid = guid;
-            _resetBufferSceneGuid = guid;
-        }
-    
-        public void SetPrefabPath(string newPrefabPath)
-        {
-            prefabPath = newPrefabPath;
-        }
         
-        public void SecureRequestOwnership()
-        {
-            var webSocketClient = UnityUtility.FindObjectOfTypeInScene<WebSocketClient>(gameObject.scene, true);
-            var requestOwnershipEvent = new SaveRequestOwnershipEvent(this, webSocketClient.LocalConnection);
-            webSocketClient.RequestRaiseEvent(requestOwnershipEvent);
-        }
-
-        public void SecureReleaseOwnership()
-        {
-            var releaseOwnershipEvent = new SaveReleaseOwnershipEvent(this);
-            UnityUtility.FindObjectOfTypeInScene<WebSocketClient>(gameObject.scene, true).RequestRaiseEvent(releaseOwnershipEvent);
-        }
-
-        public void OnAfterAcquireOwnership(NetworkConnection oldConnection, NetworkConnection newConnection)
-        {
-            foreach (var onAfterAcquireOwnership in GetComponents<IOnAfterAcquireOwnership>())
-            {
-                onAfterAcquireOwnership.OnAfterAcquireOwnership(oldConnection, newConnection);
-            }
-        }
-
-        public void OnBeforeLoseOwnership(NetworkConnection oldConnection, NetworkConnection newConnection)
-        {
-            foreach (var onBeforeLoseOwnership in GetComponents<IOnBeforeLoseOwnership>())
-            {
-                onBeforeLoseOwnership.OnBeforeLoseOwnership(oldConnection, newConnection);
-            }
-        }
-    
         private void SetDirty(UnityEngine.Object obj)
         {
 #if UNITY_EDITOR
@@ -186,67 +158,70 @@ namespace Component
             }
 #endif
         }
-    }
 
-    public interface IOnAfterAcquireOwnership
-    {
-        void OnAfterAcquireOwnership(NetworkConnection oldConnection, NetworkConnection newConnection);
-    }
+        #endregion
+
+        #region Internal
+
+        internal void SetSceneGuidGroup(string guid)
+        {
+            serializeFieldSceneGuid = guid;
+            _resetBufferSceneGuid = guid;
+        }
     
-    public interface IOnBeforeLoseOwnership
-    {
-        void OnBeforeLoseOwnership(NetworkConnection oldConnection, NetworkConnection newConnection);
-    }
-    
-    public readonly struct SaveRequestOwnershipEvent : INetworkEvent
-    {
-        public readonly NetworkObject NetworkObject;
-        public readonly NetworkConnection NetworkConnection;
-
-        public SaveRequestOwnershipEvent(NetworkObject networkObject, NetworkConnection networkConnection)
+        internal void SetPrefabPath(string newPrefabPath)
         {
-            NetworkObject = networkObject;
-            NetworkConnection = networkConnection;
+            prefabPath = newPrefabPath;
+        }
+        
+        internal void OnAfterAcquireOwnership(NetworkConnection oldConnection, NetworkConnection newConnection)
+        {
+            foreach (var onAfterAcquireOwnership in GetComponents<IOnAfterAcquireOwnership>())
+            {
+                onAfterAcquireOwnership.OnAfterAcquireOwnership(oldConnection, newConnection);
+            }
         }
 
-        public bool ValidateRequest()
+        internal void OnBeforeLoseOwnership(NetworkConnection oldConnection, NetworkConnection newConnection)
         {
-            return !NetworkObject.HasOwner;
+            foreach (var onBeforeLoseOwnership in GetComponents<IOnBeforeLoseOwnership>())
+            {
+                onBeforeLoseOwnership.OnBeforeLoseOwnership(oldConnection, newConnection);
+            }
         }
 
-        public void PerformEvent()
+        internal void OnNetworkInstantiate()
         {
-            if (NetworkObject.HasOwner) return;
-            
-            var oldConnection = NetworkObject.Owner;
-            NetworkObject.Owner = NetworkConnection;
-            NetworkObject.OnAfterAcquireOwnership(oldConnection, NetworkConnection);
+            foreach (var onNetworkInstantiate in GetComponents<IOnNetworkInstantiate>())
+            {
+                onNetworkInstantiate.OnNetworkInstantiate();
+            }
         }
-    }
-    
-    public readonly struct SaveReleaseOwnershipEvent : INetworkEvent
-    {
-        public readonly NetworkObject NetworkObject;
-
-        public SaveReleaseOwnershipEvent(NetworkObject networkObject)
+        
+        internal void OnNetworkDestroy()
         {
-            NetworkObject = networkObject;
+            foreach (var onNetworkDestroy in GetComponents<IOnNetworkDestroy>())
+            {
+                onNetworkDestroy.OnNetworkDestroy();
+            }
         }
 
-        private bool IsOwner => NetworkObject.Owner.Equals(UnityUtility.FindObjectOfTypeInScene<WebSocketClient>(NetworkObject.gameObject.scene, true).LocalConnection);
+        #endregion
 
-        public bool ValidateRequest()
+        #region Public
+
+        public void SecureRequestOwnership()
         {
-            return IsOwner;
+            var networkManager = NetworkManager.Instance;
+            var requestOwnershipEvent = new SaveRequestOwnershipEvent(this, networkManager.LocalConnection);
+            networkManager.RequestRaiseEvent(requestOwnershipEvent);
         }
 
-        public void PerformEvent()
+        public void SecureReleaseOwnership()
         {
-            if (!NetworkObject.HasOwner) return;
-
-            var newConnection = new NetworkConnection();
-            NetworkObject.OnBeforeLoseOwnership(NetworkObject.Owner, newConnection);
-            NetworkObject.Owner = newConnection;
+            NetworkManager.Instance.RequestRaiseEvent(new SaveReleaseOwnershipEvent(this));
         }
+
+        #endregion
     }
 }

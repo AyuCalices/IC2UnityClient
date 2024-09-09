@@ -1,7 +1,7 @@
-namespace SaveLoadSystem.Utility
+namespace Identification
 {
-    public interface ICreateGameObjectHierarchy
+    internal interface ICreateGameObjectHierarchy
     {
-        public void OnCreateGameObjectHierarchy();
+        void OnCreateGameObjectHierarchy();
     }
 }

@@ -1,6 +1,6 @@
-namespace SaveLoadSystem.Utility
+namespace Identification
 {
-    public interface IChangeGameObjectStructure
+    internal interface IChangeGameObjectStructure
     {
         public void OnChangeGameObjectStructure();
     }

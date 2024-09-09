@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using SaveLoadSystem.Utility;
+using Component;
 using UnityEngine;
 
-namespace Component
+namespace Identification
 {
     public class PrefabRegistry : ScriptableObject
     {

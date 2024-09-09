@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace SaveLoadSystem.Utility
+namespace Identification
 {
     public interface IChangeGameObjectParent
     {
