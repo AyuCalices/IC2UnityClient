@@ -1,322 +1,127 @@
 using System;
 using System.Collections.Generic;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Core;
 using DataTransferObject;
 using Identification;
 using NetworkEvent;
-using Unity.Plastic.Newtonsoft.Json;
-using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityCommunity.UnitySingleton;
 using UnityEngine;
 
 namespace Component
 {
-    public class NetworkManager : PersistentMonoSingleton<NetworkManager>
+    public enum ErrorType { LobbyAlreadyExists, AlreadyInLobby, LobbyNotFound, LobbyFull, InvalidPassword, NotInLobby, NoLobbyJoined}
+    
+    public sealed class NetworkManager : PersistentMonoSingleton<NetworkManager>
     {
         //write about cecil -> to complex, because of that -> delegate
-        //a way to correctly identify every client -> test
-        //NO host -> everyone needs to hold the data -> means, host migration is not needed as well. BUT: if a new client joins the room, he needs to fetch all data -> test
-        //events aka RPC's is the main way for communication -> test
-        //No predicition needed
         
-        //TODO: various type support: Instantiation of Objects & it might be neccessary to keep references over the server?
-        //TODO: reconnect
+        /* Features:
+         * Events for Messaging
+         * Events are cashed at server for each lobby and provided on connect
+         * No Host System -> everyone should have all data
+         * Client Identification
+         * Ownership of Objects -> should cover Race Conditions
+         * Type support for everything that NewtonsoftJson can serialize + NetworkObject
+         * Callbacks for network events
+         */
+        
+        //TODO: maybe class for stuff inside the lobby & maybe class for lobby connecting -> low prio
+        
+        //TODO: build game and improve based on what is needed for that game -> the game should be the prime target
+        //TODO: implemen OnClientDisconnected & OnDisconnect callback
+        //TODO: check what to do for host migration and reconnecting
 
         [SerializeField] private PrefabRegistry prefabRegistry;
-        [SerializeField] private double keepAliveInterval = 20;
+        [SerializeField] private float keepAliveInterval = 20;
         [SerializeField] private string lobbyName = "lobbyName";
         [SerializeField] private int lobbyCapacity = 4;
         
-        
-        public Dictionary<string, NetworkObject> NetworkObjects { get; } = new();   //must be non static!
-        public HashSet<NetworkConnection> LobbyConnections { get; private set; } = new();
+        public Dictionary<string, NetworkObject> NetworkObjects { get; } = new();
+        public HashSet<NetworkConnection> LobbyConnections { get; } = new();
         public NetworkConnection LocalConnection { get; private set; }
+
+        
+        private NetworkController _networkController;
         
 
-        private ClientWebSocket _webSocket;
-        private CancellationTokenSource _cancellationToken;
-
-        private const string ErrorResponse = "errorResponse";
-        
-        private const string ConnectedResponse = "connectedResponse";
-
-        private const string FetchLobbyRequest = "fetchLobbyRequest";
-        private const string FetchLobbyResponse = "fetchLobbyResponse";
-
-        private const string CreateLobbyRequest = "createLobbyRequest";
-        private const string CreateLobbyResponse = "createLobbyResponse";
-
-        private const string JoinLobbyRequest = "joinLobbyRequest";
-        private const string JoinLobbyClientResponse = "joinLobbyClientResponse";
-        private const string JoinLobbyBroadcastResponse = "joinLobbyBroadcastResponse";
-
-        private const string LeaveLobbyRequest = "leaveLobbyRequest";
-        private const string LeaveLobbyClientResponse = "leaveLobbyClientResponse";
-        private const string LeaveLobbyBroadcastResponse = "leaveLobbyBroadcastResponse";
-        
-        private const string EventRequest = "clientEventRequest";
-        private const string EventResponse = "clientEventResponse";
+        #region Unity Lifecycle
 
         protected override void Awake()
         {
             base.Awake();
             
-            _cancellationToken = new CancellationTokenSource();
+            _networkController = new NetworkController(this, NetworkObjects, prefabRegistry, keepAliveInterval);
         }
-
-        [ContextMenu("Connect To Server")]
-        public async void ConnectToServer()
-        {
-            _webSocket = new ClientWebSocket();
-            _webSocket.Options.KeepAliveInterval = TimeSpan.FromSeconds(keepAliveInterval);
-            
-            try
-            {
-                // Connect to the WebSocket server
-                await _webSocket.ConnectAsync(new System.Uri("ws://localhost:8080"), _cancellationToken.Token);
-                Debug.Log("Connected to WebSocket server");
-
-                // Start listening to messages
-                await ListenForMessages(_cancellationToken.Token);
-            }
-            catch (WebSocketException ex)
-            {
-                Debug.LogError($"WebSocket error during connection: {ex.Message}");
-            }
-        }
-
+        
         private void OnApplicationQuit()
         {
-            try
-            {
-                if (_webSocket != null)
-                {
-                    if (_webSocket.State == WebSocketState.Open)
-                    {
-                        _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Application closing", _cancellationToken.Token).Wait();
-                    }
-                    _webSocket.Dispose();
-                }
-                _cancellationToken.Cancel();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Error during application quit: {ex.Message}");
-            }
+            DisconnectFromServer();
         }
-        
-        private async Task ListenForMessages(CancellationToken token)
+
+        #endregion
+
+        #region Public Lobby and Connection
+
+        [ContextMenu(nameof(ConnectToServer))]
+        public void ConnectToServer()
         {
-            var buffer = new byte[1024];
-            var messageBuffer = new List<byte>();
-
-            try
+            if (!_networkController.IsConnected)
             {
-                while (_webSocket.State == WebSocketState.Open)
-                {
-                    WebSocketReceiveResult result;
-                    do
-                    {
-                        result = await _webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), token);
-                        if (result.MessageType == WebSocketMessageType.Text)
-                        {
-                            // Add the received bytes to the message buffer
-                            messageBuffer.AddRange(new ArraySegment<byte>(buffer, 0, result.Count));
-                        }
-                        else if (result.MessageType == WebSocketMessageType.Close)
-                        {
-                            await _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, token);
-                        }
-
-                    } while (!result.EndOfMessage); // Continue receiving until EndOfMessage is true
-
-                    // Once the entire message is received, convert it to a string
-                    if (result.MessageType == WebSocketMessageType.Text)
-                    {
-                        string message = Encoding.UTF8.GetString(messageBuffer.ToArray());
-                        messageBuffer.Clear();
-                        
-                        // Process the received message
-                        var receivedMessage = JsonConvert.DeserializeObject<ReceivedMessage>(message);
-                        switch (receivedMessage.type)
-                        {
-                            case ErrorResponse:
-                                Debug.LogError($"{ErrorResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                break;
-                            case ConnectedResponse:
-                                Debug.Log($"{ConnectedResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                var connectedData = JsonConvert.DeserializeObject<JoinLobbyBroadcastData>(receivedMessage.message);
-                                LocalConnection = new NetworkConnection(connectedData.clientID);
-                                break;
-                            case FetchLobbyResponse:
-                                Debug.Log($"{FetchLobbyResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                break;
-                            case CreateLobbyResponse:
-                                Debug.Log($"{CreateLobbyResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                break;
-                            case JoinLobbyClientResponse:
-                                Debug.Log($"{JoinLobbyClientResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                var joinLobbyClientData = JsonConvert.DeserializeObject<JoinLobbyClientData>(receivedMessage.message);
-                                foreach (var clientID in joinLobbyClientData.clientIDs)
-                                {
-                                    LobbyConnections.Add(new NetworkConnection(clientID));
-                                }
-                                
-                                foreach (var objLockstepEvent in joinLobbyClientData.lobbyData)
-                                {
-                                    DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequestData>(objLockstepEvent)).PerformEvent();
-                                }
-                                break;
-                            
-                            case JoinLobbyBroadcastResponse:
-                                Debug.Log($"{JoinLobbyBroadcastResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                var joinLobbyBroadcastData = JsonConvert.DeserializeObject<JoinLobbyBroadcastData>(receivedMessage.message);
-                                LobbyConnections.Add(new NetworkConnection(joinLobbyBroadcastData.clientID));
-                                break;
-                            
-                            case LeaveLobbyClientResponse:
-                                Debug.Log($"{LeaveLobbyClientResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                LobbyConnections.Clear();
-                                break;
-                            case LeaveLobbyBroadcastResponse:
-                                Debug.Log($"{LeaveLobbyBroadcastResponse}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
-                                var leaveLobbyBroadcastData = JsonConvert.DeserializeObject<LeaveLobbyBroadcastData>(receivedMessage.message);
-                                LobbyConnections.RemoveWhere(x => x.ConnectionID == leaveLobbyBroadcastData.clientID);
-                                break;
-                            case EventResponse:
-                                var instance = DeserializeLockstepEvent(JsonConvert.DeserializeObject<RPCRequestData>(receivedMessage.message));
-                                instance.PerformEvent();
-                                // Handle the data as needed
-                                break;
-                            default:
-                                Debug.LogWarning("Unknown message type received.");
-                                break;
-                        }
-                    }
-                }
-            }
-            catch (WebSocketException ex)
-            {
-                Debug.LogError($"WebSocket error during message reception: {ex.Message}");
-            }
-        }
-        
-        private async void SendMessageToServer(string message)
-        {
-            if (_webSocket.State == WebSocketState.Open)
-            {
-                try
-                {
-                    var bytes = Encoding.UTF8.GetBytes(message);
-                    await _webSocket.SendAsync(new System.ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cancellationToken.Token);
-                }
-                catch (WebSocketException ex)
-                {
-                    Debug.LogError($"WebSocket error while sending message: {ex.Message}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.LogError($"Unexpected error: {ex.Message}");
-                }
+                _networkController.ConnectToServer();
             }
             else
             {
-                Debug.LogWarning("WebSocket is not open. Cannot send message.");
+                Debug.LogWarning("Already connected to server!");
+            }
+        }
+
+        [ContextMenu(nameof(DisconnectFromServer))]
+        public void DisconnectFromServer()
+        {
+            if (_networkController.IsConnected)
+            {
+                _networkController.DisconnectFromServer();
+            }
+            else
+            {
+                Debug.LogWarning("Not connected to server!");
             }
         }
         
-        [ContextMenu("Fetch Lobby")]
+        [ContextMenu(nameof(FetchLobby))]
         public void FetchLobby()
         {
-            var joinMessage = new
-            {
-                type = FetchLobbyRequest
-            };
-            string jsonMessage = JsonConvert.SerializeObject(joinMessage);
-            SendMessageToServer(jsonMessage);
+            _networkController.FetchLobby();
         }
         
-        [ContextMenu("Create Lobby")]
+        [ContextMenu(nameof(CreateLobby))]
         public void CreateLobby()
         {
-            var joinMessage = new
-            {
-                type = CreateLobbyRequest,
-                lobby = lobbyName,
-                capacity = lobbyCapacity,
-                password = "password"
-            };
-            string jsonMessage = JsonConvert.SerializeObject(joinMessage);
-            SendMessageToServer(jsonMessage);
+            _networkController.CreateLobby(lobbyName, lobbyCapacity, "password");
         }
         
-        [ContextMenu("Join Lobby")]
+        [ContextMenu(nameof(JoinLobby))]
         public void JoinLobby()
         {
-            var joinMessage = new
-            {
-                type = JoinLobbyRequest,
-                lobby = lobbyName,
-                password = "password"
-            };
-            string jsonMessage = JsonConvert.SerializeObject(joinMessage);
-            SendMessageToServer(jsonMessage);
+            _networkController.JoinLobby(lobbyName, "password");
         }
 
-        [ContextMenu("Leave Lobby")]
+        [ContextMenu(nameof(LeaveLobby))]
         public void LeaveLobby()
         {
-            var leaveMessage = new
-            {
-                type = LeaveLobbyRequest
-            };
-            string jsonMessage = JsonConvert.SerializeObject(leaveMessage);
-            SendMessageToServer(jsonMessage);
+            _networkController.LeaveLobby();
         }
 
-        private object ConvertToSerializable(object obj)
-        {
-            if (obj is NetworkObject networkObject)
-            {
-                if (!string.IsNullOrEmpty(networkObject.SceneGuid))
-                {
-                    return networkObject.SceneGuid;
-                }
+        #endregion
 
-                if (!string.IsNullOrEmpty(networkObject.PrefabGuid))
-                {
-                    return networkObject.PrefabGuid;
-                }
-
-                Debug.LogError($"{typeof(NetworkObject)} neither has a {nameof(networkObject.SceneGuid)} nor a {networkObject.PrefabGuid} to identify it! Please make sure it has one!");
-                return string.Empty;
-            }
-
-            if (obj is NetworkConnection networkConnection)
-            {
-                return networkConnection.ConnectionID;
-            }
-
-            return obj;
-        }
-
+        #region Public Instantiation
+        
         public bool RequestRaiseEvent<T>(T lockstepEvent, Action onBeforeValidEvent = null) where T : struct, INetworkEvent
         {
-            if (lockstepEvent.ValidateRequest())
-            {
-                onBeforeValidEvent?.Invoke();
-                RaiseEvent(lockstepEvent);
-                return true;
-            }
-
-            return false;
+            return _networkController.RequestRaiseEvent(lockstepEvent, onBeforeValidEvent);
         }
-        
-        public void NetworkInstantiate(NetworkObject networkObject)
+
+        public NetworkObject NetworkInstantiate(NetworkObject networkObject)
         {
             var newNetworkObject = Instantiate(networkObject);
             var newID = newNetworkObject.SceneGuid;
@@ -325,6 +130,55 @@ namespace Component
             RequestRaiseEvent(instantiationEvent);
 
             newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
+        }
+        
+        public NetworkObject NetworkInstantiate(NetworkObject networkObject, Vector3 position, Quaternion rotation)
+        {
+            var newNetworkObject = Instantiate(networkObject, position, rotation);
+            var newID = newNetworkObject.SceneGuid;
+        
+            var instantiationEvent = new InstantiatePosRotEvent(networkObject, newID, LocalConnection, position, rotation);
+            RequestRaiseEvent(instantiationEvent);
+
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
+        }
+        
+        public NetworkObject NetworkInstantiate(NetworkObject networkObject, Vector3 position, Quaternion rotation, NetworkObject parent)
+        {
+            var newNetworkObject = Instantiate(networkObject, position, rotation, parent.transform);
+            var newID = newNetworkObject.SceneGuid;
+        
+            var instantiationEvent = new InstantiatePosRotParentEvent(networkObject, newID, LocalConnection, position, rotation, parent);
+            RequestRaiseEvent(instantiationEvent);
+
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
+        }
+        
+        public NetworkObject NetworkInstantiate(NetworkObject networkObject, NetworkObject parent)
+        {
+            var newNetworkObject = Instantiate(networkObject, parent.transform);
+            var newID = newNetworkObject.SceneGuid;
+        
+            var instantiationEvent = new InstantiateParentEvent(networkObject, newID, LocalConnection, parent);
+            RequestRaiseEvent(instantiationEvent);
+
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
+        }
+        
+        public NetworkObject NetworkInstantiate(NetworkObject networkObject, NetworkObject parent, bool worldPositionStays)
+        {
+            var newNetworkObject = Instantiate(networkObject, parent.transform);
+            var newID = newNetworkObject.SceneGuid;
+        
+            var instantiationEvent = new InstantiateParentStaysEvent(networkObject, newID, LocalConnection, parent, worldPositionStays);
+            RequestRaiseEvent(instantiationEvent);
+
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
         }
         
         public void NetworkDestroy(NetworkObject networkObject)
@@ -337,106 +191,120 @@ namespace Component
                 networkObject.OnNetworkDestroy();
             }
         }
-        
-        private void RaiseEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
-        {
-            var fieldInfos = lockstepEvent.GetType().GetFields();
-            var propertyInfos = lockstepEvent.GetType().GetProperties();
-            
-            var jObject = new JArray();
-            
-            foreach (var fieldInfo in fieldInfos)
-            {
-                var serializedObj = ConvertToSerializable(fieldInfo.GetValue(lockstepEvent));
-                jObject.Add(JToken.FromObject(serializedObj));
-            }
-            
-            foreach (var propertyInfo in propertyInfos)
-            {
-                var serializedObj = ConvertToSerializable(propertyInfo.GetValue(lockstepEvent));
-                jObject.Add(JToken.FromObject(serializedObj));
-            }
-            
-            var rpcRequest = new RPCRequestData
-            {
-                lockstepType = lockstepEvent.GetType().AssemblyQualifiedName,
-                Data = jObject
-            };
 
-            var message = new
-            {
-                type = EventRequest,
-                data = rpcRequest
-            };
-            
-            var jsonMessage = JsonConvert.SerializeObject(message);
-            SendMessageToServer(jsonMessage);
-        }
-        
-        private object ConvertFromSerializable(Type targetType, JToken obj)
-        {
-            if (targetType == typeof(NetworkObject))
-            {
-                var id = obj.ToObject<string>();
+        #endregion
 
-                if (NetworkObjects.TryGetValue(id, out NetworkObject networkObject))
+        #region Internal Callbacks
+
+        internal void OnError(ReceivedMessage receivedMessage)
+        {
+            Debug.LogError($"{nameof(OnError)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            
+            // Try to parse the received message reason to an ErrorType enum
+            if (Enum.TryParse(receivedMessage.reason, out ErrorType errorType))
+            {
+                foreach (var keyValuePair in NetworkObjects)
                 {
-                    return networkObject;
+                    keyValuePair.Value.OnError(errorType);
                 }
-                
-                if (prefabRegistry.TryGetPrefab(id, out networkObject))
-                {
-                    return networkObject;
-                }
-                
-                Debug.LogWarning($"Couldn't identify any {typeof(NetworkObject)} with id {id}.");
-                return null;
             }
-            
-            if (targetType == typeof(NetworkConnection))
+            else
             {
-                return new NetworkConnection(obj.ToObject<string>());
+                Debug.LogError($"Unknown error type received: {receivedMessage.reason}");
             }
-
-            return obj.ToObject(targetType);
         }
-        
-        private INetworkEvent DeserializeLockstepEvent(RPCRequestData rpcRequestData)
+
+        internal void OnConnected(ReceivedMessage receivedMessage, NetworkConnection ownConnection)
         {
-            var type = Type.GetType(rpcRequestData.lockstepType);
-            if (type == null) return null;
-
-            var instance = Activator.CreateInstance(type);
+            LocalConnection = ownConnection;
             
-            var fieldInfos = instance.GetType().GetFields();
-            var fieldObjects = new object[fieldInfos.Length];
-            for (var i = 0; i < fieldInfos.Length; i++)
+            Debug.Log($"{nameof(OnConnected)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
             {
-                fieldObjects[i] = ConvertFromSerializable(fieldInfos[i].FieldType, rpcRequestData.Data[i]);
+                keyValuePair.Value.OnConnected(receivedMessage, ownConnection);
             }
-            
-            var propertyInfos = instance.GetType().GetProperties();
-            var propertyObjects = new object[propertyInfos.Length];
-            for (var i = 0; i < propertyInfos.Length; i++)
-            {
-                propertyObjects[i] = ConvertFromSerializable(propertyInfos[i].PropertyType, rpcRequestData.Data[i]);
-            }
-            
-            for (var i = 0; i < fieldInfos.Length; i++)
-            {
-                var fieldInfo = fieldInfos[i];
-                
-                fieldInfo.SetValue(instance, fieldObjects[i]);
-            }
-            
-            for (var i = 0; i < propertyInfos.Length; i++)
-            {
-                var propertyInfo = propertyInfos[i];
-                
-                propertyInfo.SetValue(instance, propertyObjects[i]);
-            }
-
-            return instance as INetworkEvent;
         }
+
+        internal void OnLobbiesFetched(ReceivedMessage receivedMessage, LobbiesData lobbiesData)
+        {
+            Debug.Log($"{nameof(OnLobbiesFetched)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnLobbiesFetched(receivedMessage, lobbiesData);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnLobbyCreated(ReceivedMessage receivedMessage)
+        {
+            Debug.Log($"{nameof(OnLobbyCreated)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnLobbyCreated(receivedMessage);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnLobbyJoining(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
+        {
+            foreach (var clientID in joinLobbyClientData.clientIDs)
+            {
+                LobbyConnections.Add(new NetworkConnection(clientID));
+            }
+            
+            Debug.Log($"{nameof(OnLobbyJoining)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnLobbyJoining(receivedMessage, joinLobbyClientData);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnLobbyJoined(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
+        {
+            Debug.Log($"{nameof(OnLobbyJoined)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnLobbyJoined(receivedMessage, joinLobbyClientData);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnClientJoinedLobby(ReceivedMessage receivedMessage, NetworkConnection joinedClient)
+        {
+            LobbyConnections.Add(joinedClient);
+            
+            Debug.Log($"{nameof(OnClientJoinedLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnClientJoinedLobby(receivedMessage, joinedClient);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnLeaveLobby(ReceivedMessage receivedMessage)
+        {
+            LobbyConnections.Clear();
+            
+            Debug.Log($"{nameof(OnLeaveLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnLeaveLobby(receivedMessage);
+            }
+        }
+
+        //TODO: the lobby stuff is not buffered by event
+        internal void OnClientLeftLobby(ReceivedMessage receivedMessage, NetworkConnection disconnectedClient)
+        {
+            LobbyConnections.RemoveWhere(x => x.ConnectionID == disconnectedClient.ConnectionID);
+            
+            Debug.Log($"{nameof(OnClientLeftLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnClientLeftLobby(receivedMessage, disconnectedClient);
+            }
+        }
+
+        #endregion
     }
 }

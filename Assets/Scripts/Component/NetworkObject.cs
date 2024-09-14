@@ -1,6 +1,7 @@
 using System;
 using Core;
 using Core.Callbacks;
+using DataTransferObject;
 using Identification;
 using NetworkEvent;
 using UnityEditor;
@@ -25,17 +26,17 @@ namespace Component
         
         #region Unity Lifecycle
 
-        private void Reset()
+        protected virtual void Reset()
         {
             ApplyResetBuffer();
         }
     
-        private void Awake()
+        protected virtual void Awake()
         {
             SetupSceneGuid();
         }
 
-        private void OnValidate()
+        protected virtual void OnValidate()
         {
             if (Application.isPlaying) return;
 
@@ -221,6 +222,28 @@ namespace Component
         {
             NetworkManager.Instance.RequestRaiseEvent(new SaveReleaseOwnershipEvent(this));
         }
+
+        #endregion
+
+        #region Callback
+
+        public virtual void OnError(ErrorType errorType) { }
+
+        public virtual void OnConnected(ReceivedMessage receivedMessage, NetworkConnection ownConnection) { }
+
+        public virtual void OnLobbiesFetched(ReceivedMessage receivedMessage, LobbiesData lobbiesData) { }
+
+        public virtual void OnLobbyCreated(ReceivedMessage receivedMessage) { }
+
+        public virtual void OnLobbyJoining(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData) { }
+
+        public virtual void OnLobbyJoined(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData) { }
+
+        public virtual void OnClientJoinedLobby(ReceivedMessage receivedMessage, NetworkConnection joinedClient) { }
+
+        public virtual void OnLeaveLobby(ReceivedMessage receivedMessage) { }
+
+        public virtual void OnClientLeftLobby(ReceivedMessage receivedMessage, NetworkConnection disconnectedClient) { }
 
         #endregion
     }

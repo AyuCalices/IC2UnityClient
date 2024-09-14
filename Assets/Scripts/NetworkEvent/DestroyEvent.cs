@@ -3,6 +3,7 @@ using UnityEngine;
 
 namespace NetworkEvent
 {
+    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct DestroyEvent : INetworkEvent
     {
         public readonly NetworkObject OriginObj;

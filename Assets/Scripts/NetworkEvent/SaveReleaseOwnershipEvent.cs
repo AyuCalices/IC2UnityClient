@@ -3,6 +3,7 @@ using Core;
 
 namespace NetworkEvent
 {
+    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct SaveReleaseOwnershipEvent : INetworkEvent
     {
         public readonly NetworkObject NetworkObject;

@@ -183,7 +183,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
-  text: hello 1
 --- !u!1 &323713720
 GameObject:
   m_ObjectHideFlags: 0
@@ -215,7 +214,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
-  text: hello 3
 --- !u!114 &323713722
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -350,7 +348,7 @@ GameObject:
   - component: {fileID: 765816062}
   - component: {fileID: 765816063}
   m_Layer: 0
-  m_Name: WebSocketManager
+  m_Name: NetworkManager
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -510,7 +508,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
-  text: hello 2
 --- !u!114 &1813656627
 MonoBehaviour:
   m_ObjectHideFlags: 0

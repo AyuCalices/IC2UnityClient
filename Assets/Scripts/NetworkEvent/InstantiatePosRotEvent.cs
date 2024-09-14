@@ -5,19 +5,24 @@ using UnityEngine;
 namespace NetworkEvent
 {
     // ReSharper disable MemberCanBePrivate.Global
-    public readonly struct InstantiateEvent : INetworkEvent
+    public readonly struct InstantiatePosRotEvent : INetworkEvent
     {
         public readonly NetworkObject OriginObj;
         public readonly string OriginID;
         public readonly string NewID;
         public readonly NetworkConnection NetworkConnection;
+        public readonly Vector3 Position;
+        public readonly Quaternion Rotation;
 
-        public InstantiateEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection)
+        public InstantiatePosRotEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection, 
+            Vector3 position, Quaternion rotation)
         {
             OriginObj = originObj;
             OriginID = originObj.SceneGuid;
             NewID = newID;
             NetworkConnection = networkConnection;
+            Position = position;
+            Rotation = rotation;
         }
 
         public bool ValidateRequest()
@@ -30,7 +35,7 @@ namespace NetworkEvent
             if (NetworkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
         
             OriginObj.SetSceneGuidGroup(NewID);
-            var newNetworkObj = Object.Instantiate(OriginObj);
+            var newNetworkObj = Object.Instantiate(OriginObj, Position, Rotation);
             OriginObj.SetSceneGuidGroup(OriginID);
         
             newNetworkObj.OnNetworkInstantiate();
