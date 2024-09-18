@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
@@ -11,13 +12,21 @@ namespace Durak
         [SerializeField] private float hoverHeight = 50f; // The height offset for hovering cards
 
         private readonly List<Vector3> _cardAnchoredBasePosition = new();
+
+        public bool CanHover { get; set; } = true;
         
         // Add a card to the hand
         public void AddCard(GameObject card)
         {
             cardsInHand.Add(card);
-            card.transform.SetParent(transform); // Set card parent to the CardHand object
-            card.GetComponent<RectTransform>().anchoredPosition = Vector2.zero; // Reset card position
+            card.transform.SetParent(transform, true); // Set card parent to the CardHand object
+            card.transform.rotation = Quaternion.identity;
+            UpdateCardPositions();
+        }
+
+        public void RemoveCard(GameObject card)
+        {
+            cardsInHand.Remove(card);
             UpdateCardPositions();
         }
 
@@ -26,6 +35,8 @@ namespace Durak
         {
             //var completedTweens = DOTween.Complete(transform);
             _cardAnchoredBasePosition.Clear();
+
+            if (cardsInHand.Count == 0) return;
             
             float cardWidth = cardsInHand[0].GetComponent<RectTransform>().rect.width;
             float totalWidth = (cardsInHand.Count - 1) * (cardWidth - (cardWidth * cardOverlapPercentage)); // Total width with overlap
@@ -43,6 +54,8 @@ namespace Durak
         // Called when a card is hovered over
         public void OnCardHover(GameObject hoveredCard)
         {
+            if (!CanHover) return;
+            
             //TODO: this always must be calculated from base positions of the card
             float cardWidth = hoveredCard.GetComponent<RectTransform>().rect.width;
 

@@ -12,7 +12,7 @@ namespace Durak
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                GameObject newCard = Instantiate(cardPrefab, transform, true);
+                GameObject newCard = Instantiate(cardPrefab, transform, false);
                 handManager.AddCard(newCard);
             }
         }
