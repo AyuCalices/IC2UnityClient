@@ -4,7 +4,8 @@ namespace Durak
 {
     public class CardSpawner : MonoBehaviour
     {
-        public GameObject cardPrefab; // Card prefab to instantiate
+        public CardDeck cardDeck;
+        public CardController cardControllerPrefab; // Card prefab to instantiate
         public CardHandManager handManager; // Reference to hand manager
 
         // Example: Add a card when spacebar is pressed
@@ -12,9 +13,25 @@ namespace Durak
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                GameObject newCard = Instantiate(cardPrefab, transform, false);
-                handManager.AddCard(newCard);
+                var card = cardDeck.DrawCard();
+                InstantiateCard(card);
             }
+            
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                var cards = cardDeck.DrawCards(3);
+                foreach (var card in cards)
+                {
+                    InstantiateCard(card);
+                }
+            }
+        }
+
+        private void InstantiateCard(Card card)
+        {
+            CardController newCard = Instantiate(cardControllerPrefab, transform, false);
+            newCard.SetCard(card);
+            handManager.AddCard(newCard.gameObject);
         }
     }
 }

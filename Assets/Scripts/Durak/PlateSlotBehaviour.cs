@@ -15,7 +15,7 @@ namespace Durak
         {
             var cardSlotBehaviour = Instantiate(cardSlotBehaviourPrefab, parent);
             _instantiatedCardSlots.Add(cardSlotBehaviour);
-            cardSlotBehaviour.Initialize(eventData.pointerDrag.GetComponent<CardBehaviour>());
+            cardSlotBehaviour.Initialize(eventData.pointerDrag.GetComponent<CardController>());
         }
     }
 }

@@ -73,6 +73,7 @@ namespace EventNetworking.Identification
         {
             stream.GetCreateGameObjectHierarchyEvent(i, out var createGameObjectHierarchy);
             var newGameObject = EditorUtility.InstanceIDToObject(createGameObjectHierarchy.instanceId) as GameObject;
+            if (newGameObject.IsUnityNull()) return;
 
             if (debug)
             {
@@ -106,7 +107,7 @@ namespace EventNetworking.Identification
         {
             stream.GetChangeGameObjectStructureEvent(i, out var changeGameObjectStructure);
             var gameObjectStructure = EditorUtility.InstanceIDToObject(changeGameObjectStructure.instanceId) as GameObject;
-            if (gameObjectStructure.IsDestroyed()) return;
+            if (gameObjectStructure.IsUnityNull()) return;
 
             if (debug)
             {

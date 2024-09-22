@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
@@ -7,7 +6,7 @@ namespace Durak
 {
     public class CardHandManager : MonoBehaviour
     {
-        [SerializeField] private List<GameObject> cardsInHand = new List<GameObject>(); // List of cards in hand
+        [SerializeField] private List<GameObject> cardsInHand = new(); // List of cards in hand
         [SerializeField][Range(0f, 1f)] private float cardOverlapPercentage = 0.3f; // How much each card should overlap
         [SerializeField] private float hoverHeight = 50f; // The height offset for hovering cards
 
@@ -16,11 +15,11 @@ namespace Durak
         public bool CanHover { get; set; } = true;
         
         // Add a card to the hand
-        public void AddCard(GameObject card)
+        public void AddCard(GameObject cardGo)
         {
-            cardsInHand.Add(card);
-            card.transform.SetParent(transform, true); // Set card parent to the CardHand object
-            card.transform.rotation = Quaternion.identity;
+            cardsInHand.Add(cardGo);
+            cardGo.transform.SetParent(transform, true); // Set card parent to the CardHand object
+            cardGo.transform.rotation = Quaternion.identity;
             UpdateCardPositions();
         }
 
@@ -61,10 +60,10 @@ namespace Durak
 
             for (int i = 0; i < cardsInHand.Count; i++)
             {
-                GameObject card = cardsInHand[i];
-                RectTransform cardRect = card.GetComponent<RectTransform>();
+                GameObject cardGo = cardsInHand[i];
+                RectTransform cardRect = cardGo.GetComponent<RectTransform>();
 
-                if (card == hoveredCard)
+                if (cardGo == hoveredCard)
                 {
                     //cardRect.anchoredPosition = new Vector2(cardRect.anchoredPosition.x, hoverHeight); // Move the hovered card up
                     cardRect.DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x, hoverHeight), 0.2f);
