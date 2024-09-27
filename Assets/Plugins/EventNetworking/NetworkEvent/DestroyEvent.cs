@@ -3,28 +3,22 @@ using UnityEngine;
 
 namespace EventNetworking.NetworkEvent
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct DestroyEvent : INetworkEvent
     {
-        public readonly NetworkObject OriginObj;
+        private readonly NetworkObject _originObj;
 
         public DestroyEvent(NetworkObject originObj)
         {
-            OriginObj = originObj;
-        }
-
-        public bool ValidateRequest()
-        {
-            return !OriginObj.HasOwner || OriginObj.Owner.Equals(NetworkManager.Instance.LocalConnection);
+            _originObj = originObj;
         }
 
         public void PerformEvent()
         {
-            if (OriginObj.IsUnityNull()) return;
+            if (_originObj.IsUnityNull()) return;
         
-            Object.Destroy(OriginObj.gameObject);
+            Object.Destroy(_originObj.gameObject);
         
-            OriginObj.OnNetworkDestroy();
+            _originObj.OnNetworkDestroy();
         }
     }
 }

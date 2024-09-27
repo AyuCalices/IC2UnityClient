@@ -4,41 +4,35 @@ using UnityEngine;
 
 namespace EventNetworking.NetworkEvent
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct InstantiatePosRotParentEvent : INetworkEvent
     {
-        public readonly NetworkObject OriginObj;
-        public readonly string OriginID;
-        public readonly string NewID;
-        public readonly NetworkConnection NetworkConnection;
-        public readonly Vector3 Position;
-        public readonly Quaternion Rotation;
-        public readonly NetworkObject Parent;
+        private readonly NetworkObject _originObj;
+        private readonly string _originID;
+        private readonly string _newID;
+        private readonly NetworkConnection _networkConnection;
+        private readonly Vector3 _position;
+        private readonly Quaternion _rotation;
+        private readonly NetworkObject _parent;
 
         public InstantiatePosRotParentEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection, 
             Vector3 position, Quaternion rotation, NetworkObject parent)
         {
-            OriginObj = originObj;
-            OriginID = originObj.SceneGuid;
-            NewID = newID;
-            NetworkConnection = networkConnection;
-            Position = position;
-            Rotation = rotation;
-            Parent = parent;
-        }
-
-        public bool ValidateRequest()
-        {
-            return true;
+            _originObj = originObj;
+            _originID = originObj.SceneGuid;
+            _newID = newID;
+            _networkConnection = networkConnection;
+            _position = position;
+            _rotation = rotation;
+            _parent = parent;
         }
 
         public void PerformEvent()
         {
-            if (NetworkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
+            if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
         
-            OriginObj.SetSceneGuidGroup(NewID);
-            var newNetworkObj = Object.Instantiate(OriginObj, Position, Rotation, Parent.transform);
-            OriginObj.SetSceneGuidGroup(OriginID);
+            _originObj.SetSceneGuidGroup(_newID);
+            var newNetworkObj = Object.Instantiate(_originObj, _position, _rotation, _parent.transform);
+            _originObj.SetSceneGuidGroup(_originID);
         
             newNetworkObj.OnNetworkInstantiate();
         }

@@ -46,3 +46,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   serializeFieldSceneGuid: 
   prefabPath: Assets/Prefabs/Test.prefab
+  migrateOwnerOnLeaveLobby: 0

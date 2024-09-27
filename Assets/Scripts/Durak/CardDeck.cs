@@ -1,34 +1,41 @@
+using System;
 using System.Collections.Generic;
+using EventNetworking.Component;
 using UnityEditor;
 using UnityEngine;
-using Random = System.Random;
+using Random = UnityEngine.Random;
 
 namespace Durak
 {
-    public class CardDeck : MonoBehaviour
+    public class CardDeck : NetworkObject
     {
         [SerializeField] private TrumpTypeFocus trumpTypeFocus;
         [SerializeField] private List<CardGenerator> cardGenerators;
         [SerializeField] private bool useSeed;
-        [SerializeField] private int seed;
+        [SerializeField] private int shuffleSeed;
         
         private readonly List<Card> _drawableCards = new();
- 
-        private void Start()
+        
+        public int GenerateSeed() => useSeed ? shuffleSeed : Guid.NewGuid().GetHashCode();
+
+        public void InitializeDeck(int seed)
         {
             foreach (var cardGenerator in cardGenerators)
             {
                 _drawableCards.Add(cardGenerator.Generate());
             }
-
-            if (useSeed)
-            {
-                UnityEngine.Random.InitState(seed);
-            }
+            
+            Random.InitState(seed);
             Shuffle();
 
             Debug.Log($"Trump is {_drawableCards[0].CardType}");
             trumpTypeFocus.SetFocus(_drawableCards[0].CardType);
+        }
+
+        public void DisposeDeck()
+        {
+            _drawableCards.Clear();
+            trumpTypeFocus.ClearFocus();
         }
 
         private void Shuffle()
@@ -37,7 +44,7 @@ namespace Durak
             while (n > 1)
             {
                 n--;
-                var k = UnityEngine.Random.Range(0, n + 1);
+                var k = Random.Range(0, n + 1);
                 (_drawableCards[k], _drawableCards[n]) = (_drawableCards[n], _drawableCards[k]);
             }
         }
@@ -56,7 +63,7 @@ namespace Durak
             return cards;
         }
         
-        [ContextMenu("Fill Type")]
+        [ContextMenu("Utility: Find All Card Generators")]
         private void FillType()
         {
             cardGenerators = FindAllCardGenerators();

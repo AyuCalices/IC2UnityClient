@@ -3,30 +3,28 @@ using EventNetworking.Core;
 
 namespace EventNetworking.NetworkEvent
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct SaveRequestOwnershipEvent : INetworkEvent
     {
-        public readonly NetworkObject NetworkObject;
-        public readonly NetworkConnection NetworkConnection;
+        private readonly NetworkObject _networkObject;
+        private readonly NetworkConnection _networkConnection;
 
         public SaveRequestOwnershipEvent(NetworkObject networkObject, NetworkConnection networkConnection)
         {
-            NetworkObject = networkObject;
-            NetworkConnection = networkConnection;
-        }
-
-        public bool ValidateRequest()
-        {
-            return !NetworkObject.HasOwner;
+            _networkObject = networkObject;
+            _networkConnection = networkConnection;
         }
 
         public void PerformEvent()
         {
-            if (NetworkObject.HasOwner) return;
+            if (_networkObject.HasOwner) return;
             
-            var oldConnection = NetworkObject.Owner;
-            NetworkObject.Owner = NetworkConnection;
-            NetworkObject.OnAfterAcquireOwnership(oldConnection, NetworkConnection);
+            var oldConnection = _networkObject.Owner;
+            _networkObject.Owner = _networkConnection;
+
+            if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection))
+            {
+                _networkObject.OnAfterAcquireOwnership(oldConnection, _networkConnection);
+            }
         }
     }
 }

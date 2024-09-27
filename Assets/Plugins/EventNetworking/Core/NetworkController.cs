@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.WebSockets;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,6 +45,7 @@ namespace EventNetworking.Core
         private const string LeaveLobbyClientResponse = "leaveLobbyClientResponse";
         private const string LeaveLobbyBroadcastResponse = "leaveLobbyBroadcastResponse";
         
+        private const string CacheEventRequest = "cacheEventRequest";
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
 
@@ -101,17 +103,10 @@ namespace EventNetworking.Core
             }
         }
         
-        public bool RequestRaiseEvent<T>(T lockstepEvent, Action onBeforeValidEvent = null) where T : struct, INetworkEvent
+        public void RequestRaiseEvent<T>(T lockstepEvent, bool cacheEvent = false) where T : struct, INetworkEvent
         {
-            if (lockstepEvent.ValidateRequest())
-            {
-                onBeforeValidEvent?.Invoke();
-                var serializedEvent = SerializeNetworkEvent(lockstepEvent);
-                SendMessageToServer(serializedEvent);
-                return true;
-            }
-
-            return false;
+            var serializedEvent = SerializeNetworkEvent(lockstepEvent, cacheEvent ? CacheEventRequest : EventRequest);
+            SendMessageToServer(serializedEvent);
         }
         
         public void FetchLobby()
@@ -231,7 +226,7 @@ namespace EventNetworking.Core
                                 _networkManager.OnConnected(receivedMessage, new NetworkConnection(connectedData.clientID));
                                 break;
                             case FetchLobbyResponse:
-                                var lobbiesData = JsonConvert.DeserializeObject<LobbiesData>(receivedMessage.message);
+                                var lobbiesData = JsonConvert.DeserializeObject<LobbiesData[]>(receivedMessage.message);
                                 _networkManager.OnLobbiesFetched(receivedMessage, lobbiesData);
                                 break;
                             case CreateLobbyResponse:
@@ -262,8 +257,9 @@ namespace EventNetworking.Core
                                 _networkManager.OnClientLeftLobby(receivedMessage, new NetworkConnection(leaveLobbyBroadcastData.clientID));
                                 break;
                             case EventResponse:     //this is a callback by definition
-                                var instance = DeserializeNetworkEvent(JsonConvert.DeserializeObject<RPCRequestData>(receivedMessage.message));
-                                instance.PerformEvent();
+                                var networkEvent = DeserializeNetworkEvent(JsonConvert.DeserializeObject<RPCRequestData>(receivedMessage.message));
+                                Debug.LogWarning("EventResponse: " + networkEvent.GetType());
+                                networkEvent.PerformEvent();
                                 // Handle the data as needed
                                 break;
                             default:
@@ -279,10 +275,10 @@ namespace EventNetworking.Core
             }
         }
         
-        private string SerializeNetworkEvent<T>(T lockstepEvent) where T : struct, INetworkEvent
+        private string SerializeNetworkEvent<T>(T lockstepEvent, string eventType) where T : struct, INetworkEvent
         {
-            var fieldInfos = lockstepEvent.GetType().GetFields();
-            var propertyInfos = lockstepEvent.GetType().GetProperties();
+            var fieldInfos = lockstepEvent.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var propertyInfos = lockstepEvent.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             
             var jObject = new JArray();
             
@@ -306,7 +302,7 @@ namespace EventNetworking.Core
 
             var message = new
             {
-                type = EventRequest,
+                type = eventType,
                 data = rpcRequest
             };
             
@@ -346,14 +342,14 @@ namespace EventNetworking.Core
 
             var instance = Activator.CreateInstance(type);
             
-            var fieldInfos = instance.GetType().GetFields();
+            var fieldInfos = instance.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             var fieldObjects = new object[fieldInfos.Length];
             for (var i = 0; i < fieldInfos.Length; i++)
             {
                 fieldObjects[i] = ConvertFromSerializable(_networkObjects, _prefabRegistry, fieldInfos[i].FieldType, rpcRequestData.Data[i]);
             }
             
-            var propertyInfos = instance.GetType().GetProperties();
+            var propertyInfos = instance.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             var propertyObjects = new object[propertyInfos.Length];
             for (var i = 0; i < propertyInfos.Length; i++)
             {
@@ -379,7 +375,7 @@ namespace EventNetworking.Core
         
         private object ConvertFromSerializable(Dictionary<string, NetworkObject> networkObjects, PrefabRegistry prefabRegistry, Type targetType, JToken obj)
         {
-            if (targetType == typeof(NetworkObject))
+            if (typeof(NetworkObject).IsAssignableFrom(targetType))
             {
                 var id = obj.ToObject<string>();
 
@@ -397,7 +393,7 @@ namespace EventNetworking.Core
                 return null;
             }
             
-            if (targetType == typeof(NetworkConnection))
+            if (typeof(NetworkConnection).IsAssignableFrom(targetType))
             {
                 return new NetworkConnection(obj.ToObject<string>());
             }

@@ -1,29 +1,62 @@
+using System.Collections.Generic;
+using EventNetworking.Component;
+using EventNetworking.Core;
 using UnityEngine;
 
 namespace Durak
 {
     public class CardSpawner : MonoBehaviour
     {
-        public CardDeck cardDeck;
-        public CardController cardControllerPrefab; // Card prefab to instantiate
-        public CardHandManager handManager; // Reference to hand manager
+        [SerializeField] private CardDeck cardDeck;
+        [SerializeField] private CardController cardControllerPrefab; 
+        [SerializeField] private CardHandManager handManager;
+        [SerializeField] private int targetCardCount;
 
-        // Example: Add a card when spacebar is pressed
-        private void Update()
+        private readonly Dictionary<NetworkConnection, List<Card>> _playerCards = new();
+
+        public void DrawCardsForAll()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            foreach (var connection in NetworkManager.Instance.LobbyConnections)
             {
-                var card = cardDeck.DrawCard();
-                InstantiateCard(card);
+                DrawCardsForPlayer(connection);
             }
-            
-            if (Input.GetKeyDown(KeyCode.M))
+        }
+
+        private void DrawCardsForPlayer(NetworkConnection networkConnection)
+        {
+            var cards = SaveGetCards(networkConnection);
+                
+            var newCards = DrawCards(cards, targetCardCount);
+
+            if (networkConnection.Equals(NetworkManager.Instance.LocalConnection))
             {
-                var cards = cardDeck.DrawCards(3);
-                foreach (var card in cards)
-                {
-                    InstantiateCard(card);
-                }
+                InstantiateCards(newCards);
+            }
+        }
+
+        private List<Card> SaveGetCards(NetworkConnection networkConnection)
+        {
+            if (!_playerCards.TryGetValue(networkConnection, out List<Card> cards))
+            {
+                cards = new List<Card>();
+                _playerCards.Add(networkConnection, cards);
+            }
+
+            return cards;
+        }
+
+        private List<Card> DrawCards(List<Card> cards, int targetCount)
+        {
+            var newCards = cardDeck.DrawCards(targetCount - cards.Count);
+            cards.AddRange(newCards);
+            return newCards;
+        }
+
+        private void InstantiateCards(List<Card> cards)
+        {
+            foreach (var card in cards)
+            {
+                InstantiateCard(card);
             }
         }
 

@@ -154,6 +154,7 @@ MonoBehaviour:
   cardDeck: {fileID: 0}
   cardControllerPrefab: {fileID: 2742030220783827068, guid: b391c4a4a54caad40a2dee870b317014, type: 3}
   handManager: {fileID: 3979198600435795932}
+  targetCardCount: 6
 --- !u!114 &3979198600435795932
 MonoBehaviour:
   m_ObjectHideFlags: 0

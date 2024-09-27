@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using EventNetworking.Core;
 using EventNetworking.Core.Callbacks;
 using EventNetworking.DataTransferObject;
@@ -15,6 +16,8 @@ namespace EventNetworking.Component
         private string _resetBufferSceneGuid;
 
         [SerializeField] private string prefabPath;
+
+        [SerializeField] private bool migrateOwnerOnLeaveLobby;
 
         public NetworkConnection Owner { get => owner; set => owner = value; }
         [SerializeField] private NetworkConnection owner;
@@ -206,6 +209,17 @@ namespace EventNetworking.Component
                 onNetworkDestroy.OnNetworkDestroy();
             }
         }
+        
+        internal void InternalOnClientLeftLobby(NetworkConnection disconnectedClient)
+        {
+            //state migration
+            if (migrateOwnerOnLeaveLobby && HasOwner && Owner.Equals(disconnectedClient) && NetworkManager.Instance.LobbyConnections.Count > 0)
+            {
+                Owner = NetworkManager.Instance.LobbyConnections.FirstOrDefault();
+            }
+
+            OnClientLeftLobby(disconnectedClient);
+        }
 
         #endregion
 
@@ -213,6 +227,8 @@ namespace EventNetworking.Component
 
         public void SecureRequestOwnership()
         {
+            if (HasOwner) return;
+            
             var networkManager = NetworkManager.Instance;
             var requestOwnershipEvent = new SaveRequestOwnershipEvent(this, networkManager.LocalConnection);
             networkManager.RequestRaiseEvent(requestOwnershipEvent);
@@ -229,21 +245,21 @@ namespace EventNetworking.Component
 
         public virtual void OnError(ErrorType errorType) { }
 
-        public virtual void OnConnected(ReceivedMessage receivedMessage, NetworkConnection ownConnection) { }
+        public virtual void OnConnected(NetworkConnection ownConnection) { }
 
-        public virtual void OnLobbiesFetched(ReceivedMessage receivedMessage, LobbiesData lobbiesData) { }
+        public virtual void OnLobbiesFetched(LobbiesData[] lobbiesData) { }
 
-        public virtual void OnLobbyCreated(ReceivedMessage receivedMessage) { }
+        public virtual void OnLobbyCreated() { }
 
-        public virtual void OnLobbyJoining(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData) { }
+        public virtual void OnLobbyJoining(JoinLobbyClientData joinLobbyClientData) { }
 
-        public virtual void OnLobbyJoined(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData) { }
+        public virtual void OnLobbyJoined(JoinLobbyClientData joinLobbyClientData) { }
 
-        public virtual void OnClientJoinedLobby(ReceivedMessage receivedMessage, NetworkConnection joinedClient) { }
+        public virtual void OnClientJoinedLobby(NetworkConnection joinedClient) { }
 
-        public virtual void OnLeaveLobby(ReceivedMessage receivedMessage) { }
+        public virtual void OnLeaveLobby() { }
 
-        public virtual void OnClientLeftLobby(ReceivedMessage receivedMessage, NetworkConnection disconnectedClient) { }
+        public virtual void OnClientLeftLobby(NetworkConnection disconnectedClient) { }
 
         #endregion
     }

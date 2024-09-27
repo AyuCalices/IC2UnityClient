@@ -6,10 +6,11 @@ using EventNetworking.Identification;
 using EventNetworking.NetworkEvent;
 using UnityCommunity.UnitySingleton;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace EventNetworking.Component
 {
-    public enum ErrorType { LobbyAlreadyExists, AlreadyInLobby, LobbyNotFound, LobbyFull, InvalidPassword, NotInLobby, NoLobbyJoined}
+    public enum ErrorType { LobbyAlreadyExists, AlreadyInLobby, LobbyNotFound, LobbyFull, InvalidPassword, NotInLobby, NoLobbyJoined }
     
     public sealed class NetworkManager : PersistentMonoSingleton<NetworkManager>
     {
@@ -33,11 +34,26 @@ namespace EventNetworking.Component
 
         [SerializeField] private PrefabRegistry prefabRegistry;
         [SerializeField] private float keepAliveInterval = 20;
-        [SerializeField] private string lobbyName = "lobbyName";
-        [SerializeField] private int lobbyCapacity = 4;
+        
+        [Header("Development")]
+        [SerializeField] private string defaultLobbyName = "lobbyName";
+        [SerializeField] private int defaultLobbyCapacity = 4;
+        [SerializeField] private bool debug;
+        
+        public int DefaultLobbyCapacity
+        {
+            get => defaultLobbyCapacity;
+            set => defaultLobbyCapacity = value;
+        }
+
+        public string DefaultLobbyName
+        {
+            get => defaultLobbyName;
+            set => defaultLobbyName = value;
+        }
         
         public Dictionary<string, NetworkObject> NetworkObjects { get; } = new();
-        public HashSet<NetworkConnection> LobbyConnections { get; } = new();
+        public List<NetworkConnection> LobbyConnections { get; } = new();
         public NetworkConnection LocalConnection { get; private set; }
 
         
@@ -97,13 +113,13 @@ namespace EventNetworking.Component
         [ContextMenu(nameof(CreateLobby))]
         public void CreateLobby()
         {
-            _networkController.CreateLobby(lobbyName, lobbyCapacity, "password");
+            _networkController.CreateLobby(defaultLobbyName, defaultLobbyCapacity, "password");
         }
         
         [ContextMenu(nameof(JoinLobby))]
         public void JoinLobby()
         {
-            _networkController.JoinLobby(lobbyName, "password");
+            _networkController.JoinLobby(defaultLobbyName, "password");
         }
 
         [ContextMenu(nameof(LeaveLobby))]
@@ -116,9 +132,9 @@ namespace EventNetworking.Component
 
         #region Public Instantiation
         
-        public bool RequestRaiseEvent<T>(T lockstepEvent, Action onBeforeValidEvent = null) where T : struct, INetworkEvent
+        public void RequestRaiseEvent<T>(T lockstepEvent, bool cacheEvent = false) where T : struct, INetworkEvent
         {
-            return _networkController.RequestRaiseEvent(lockstepEvent, onBeforeValidEvent);
+            _networkController.RequestRaiseEvent(lockstepEvent, cacheEvent);
         }
 
         public NetworkObject NetworkInstantiate(NetworkObject networkObject)
@@ -127,7 +143,7 @@ namespace EventNetworking.Component
             var newID = newNetworkObject.SceneGuid;
         
             var instantiationEvent = new InstantiateEvent(networkObject, newID, LocalConnection);
-            RequestRaiseEvent(instantiationEvent);
+            RequestRaiseEvent(instantiationEvent, true);
 
             newNetworkObject.OnNetworkInstantiate();
             return newNetworkObject;
@@ -139,7 +155,7 @@ namespace EventNetworking.Component
             var newID = newNetworkObject.SceneGuid;
         
             var instantiationEvent = new InstantiatePosRotEvent(networkObject, newID, LocalConnection, position, rotation);
-            RequestRaiseEvent(instantiationEvent);
+            RequestRaiseEvent(instantiationEvent, true);
 
             newNetworkObject.OnNetworkInstantiate();
             return newNetworkObject;
@@ -151,7 +167,7 @@ namespace EventNetworking.Component
             var newID = newNetworkObject.SceneGuid;
         
             var instantiationEvent = new InstantiatePosRotParentEvent(networkObject, newID, LocalConnection, position, rotation, parent);
-            RequestRaiseEvent(instantiationEvent);
+            RequestRaiseEvent(instantiationEvent, true);
 
             newNetworkObject.OnNetworkInstantiate();
             return newNetworkObject;
@@ -163,7 +179,7 @@ namespace EventNetworking.Component
             var newID = newNetworkObject.SceneGuid;
         
             var instantiationEvent = new InstantiateParentEvent(networkObject, newID, LocalConnection, parent);
-            RequestRaiseEvent(instantiationEvent);
+            RequestRaiseEvent(instantiationEvent, true);
 
             newNetworkObject.OnNetworkInstantiate();
             return newNetworkObject;
@@ -175,7 +191,7 @@ namespace EventNetworking.Component
             var newID = newNetworkObject.SceneGuid;
         
             var instantiationEvent = new InstantiateParentStaysEvent(networkObject, newID, LocalConnection, parent, worldPositionStays);
-            RequestRaiseEvent(instantiationEvent);
+            RequestRaiseEvent(instantiationEvent, true);
 
             newNetworkObject.OnNetworkInstantiate();
             return newNetworkObject;
@@ -184,11 +200,13 @@ namespace EventNetworking.Component
         public void NetworkDestroy(NetworkObject networkObject)
         {
             if (networkObject.IsUnityNull() || string.IsNullOrEmpty(networkObject.SceneGuid)) return;
-        
-            var instantiationEvent = new DestroyEvent(networkObject);
-            if (RequestRaiseEvent(instantiationEvent, () => Destroy(networkObject.gameObject)))
+
+            if (!networkObject.HasOwner || networkObject.Owner.Equals(NetworkManager.Instance.LocalConnection))
             {
+                var instantiationEvent = new DestroyEvent(networkObject);
                 networkObject.OnNetworkDestroy();
+                Destroy(networkObject.gameObject);
+                RequestRaiseEvent(instantiationEvent, true);
             }
         }
 
@@ -198,7 +216,10 @@ namespace EventNetworking.Component
 
         internal void OnError(ReceivedMessage receivedMessage)
         {
-            Debug.LogError($"{nameof(OnError)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            if (debug)
+            {
+                Debug.LogError($"{nameof(OnError)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
             
             // Try to parse the received message reason to an ErrorType enum
             if (Enum.TryParse(receivedMessage.reason, out ErrorType errorType))
@@ -216,92 +237,125 @@ namespace EventNetworking.Component
 
         internal void OnConnected(ReceivedMessage receivedMessage, NetworkConnection ownConnection)
         {
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnConnected)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             LocalConnection = ownConnection;
             
-            Debug.Log($"{nameof(OnConnected)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnConnected(receivedMessage, ownConnection);
+                keyValuePair.Value.OnConnected(ownConnection);
             }
         }
 
-        internal void OnLobbiesFetched(ReceivedMessage receivedMessage, LobbiesData lobbiesData)
+        internal void OnLobbiesFetched(ReceivedMessage receivedMessage, LobbiesData[] lobbiesData)
         {
-            Debug.Log($"{nameof(OnLobbiesFetched)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnLobbiesFetched)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnLobbiesFetched(receivedMessage, lobbiesData);
+                keyValuePair.Value.OnLobbiesFetched(lobbiesData);
             }
         }
 
         //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyCreated(ReceivedMessage receivedMessage)
         {
-            Debug.Log($"{nameof(OnLobbyCreated)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnLobbyCreated)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
+            LobbyConnections.Add(LocalConnection);
+            
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnLobbyCreated(receivedMessage);
+                keyValuePair.Value.OnLobbyCreated();
             }
         }
 
         //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyJoining(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
         {
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnLobbyJoining)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             foreach (var clientID in joinLobbyClientData.clientIDs)
             {
                 LobbyConnections.Add(new NetworkConnection(clientID));
             }
             
-            Debug.Log($"{nameof(OnLobbyJoining)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnLobbyJoining(receivedMessage, joinLobbyClientData);
+                keyValuePair.Value.OnLobbyJoining(joinLobbyClientData);
             }
         }
 
         //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyJoined(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
         {
-            Debug.Log($"{nameof(OnLobbyJoined)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnLobbyJoined)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnLobbyJoined(receivedMessage, joinLobbyClientData);
+                keyValuePair.Value.OnLobbyJoined(joinLobbyClientData);
             }
         }
 
         //TODO: the lobby stuff is not buffered by event
         internal void OnClientJoinedLobby(ReceivedMessage receivedMessage, NetworkConnection joinedClient)
         {
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnClientJoinedLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             LobbyConnections.Add(joinedClient);
             
-            Debug.Log($"{nameof(OnClientJoinedLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnClientJoinedLobby(receivedMessage, joinedClient);
+                keyValuePair.Value.OnClientJoinedLobby(joinedClient);
             }
         }
 
         //TODO: the lobby stuff is not buffered by event
         internal void OnLeaveLobby(ReceivedMessage receivedMessage)
         {
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnLeaveLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
+            
             LobbyConnections.Clear();
             
-            Debug.Log($"{nameof(OnLeaveLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnLeaveLobby(receivedMessage);
+                keyValuePair.Value.OnLeaveLobby();
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnClientLeftLobby(ReceivedMessage receivedMessage, NetworkConnection disconnectedClient)
         {
-            LobbyConnections.RemoveWhere(x => x.ConnectionID == disconnectedClient.ConnectionID);
+            if (debug)
+            {
+                Debug.Log($"{nameof(OnClientLeftLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            }
             
-            Debug.Log($"{nameof(OnClientLeftLobby)}: {receivedMessage.type} - {receivedMessage.reason}: {receivedMessage.message}");
+            LobbyConnections.RemoveAll(x => x.ConnectionID == disconnectedClient.ConnectionID);
+            
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnClientLeftLobby(receivedMessage, disconnectedClient);
+                keyValuePair.Value.InternalOnClientLeftLobby(disconnectedClient);
             }
         }
 

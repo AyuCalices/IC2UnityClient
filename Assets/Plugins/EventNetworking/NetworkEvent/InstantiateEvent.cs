@@ -4,34 +4,28 @@ using UnityEngine;
 
 namespace EventNetworking.NetworkEvent
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct InstantiateEvent : INetworkEvent
     {
-        public readonly NetworkObject OriginObj;
-        public readonly string OriginID;
-        public readonly string NewID;
-        public readonly NetworkConnection NetworkConnection;
+        private readonly NetworkObject _originObj;
+        private readonly string _originID;
+        private readonly string _newID;
+        private readonly NetworkConnection _networkConnection;
 
         public InstantiateEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection)
         {
-            OriginObj = originObj;
-            OriginID = originObj.SceneGuid;
-            NewID = newID;
-            NetworkConnection = networkConnection;
-        }
-
-        public bool ValidateRequest()
-        {
-            return true;
+            _originObj = originObj;
+            _originID = originObj.SceneGuid;
+            _newID = newID;
+            _networkConnection = networkConnection;
         }
 
         public void PerformEvent()
         {
-            if (NetworkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
+            if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
         
-            OriginObj.SetSceneGuidGroup(NewID);
-            var newNetworkObj = Object.Instantiate(OriginObj);
-            OriginObj.SetSceneGuidGroup(OriginID);
+            _originObj.SetSceneGuidGroup(_newID);
+            var newNetworkObj = Object.Instantiate(_originObj);
+            _originObj.SetSceneGuidGroup(_originID);
         
             newNetworkObj.OnNetworkInstantiate();
         }

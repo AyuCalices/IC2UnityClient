@@ -4,39 +4,33 @@ using UnityEngine;
 
 namespace EventNetworking.NetworkEvent
 {
-    // ReSharper disable MemberCanBePrivate.Global
     public readonly struct InstantiateParentStaysEvent : INetworkEvent
     {
-        public readonly NetworkObject OriginObj;
-        public readonly string OriginID;
-        public readonly string NewID;
-        public readonly NetworkConnection NetworkConnection;
-        public readonly NetworkObject Parent;
-        public readonly bool WorldPositionStays;
+        private readonly NetworkObject _originObj;
+        private readonly string _originID;
+        private readonly string _newID;
+        private readonly NetworkConnection _networkConnection;
+        private readonly NetworkObject _parent;
+        private readonly bool _worldPositionStays;
 
         public InstantiateParentStaysEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection,
             NetworkObject parent, bool worldPositionStays)
         {
-            OriginObj = originObj;
-            OriginID = originObj.SceneGuid;
-            NewID = newID;
-            NetworkConnection = networkConnection;
-            Parent = parent;
-            WorldPositionStays = worldPositionStays;
-        }
-
-        public bool ValidateRequest()
-        {
-            return true;
+            _originObj = originObj;
+            _originID = originObj.SceneGuid;
+            _newID = newID;
+            _networkConnection = networkConnection;
+            _parent = parent;
+            _worldPositionStays = worldPositionStays;
         }
 
         public void PerformEvent()
         {
-            if (NetworkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
+            if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
 
-            OriginObj.SetSceneGuidGroup(NewID);
-            var newNetworkObj = Object.Instantiate(OriginObj, Parent.transform, WorldPositionStays);
-            OriginObj.SetSceneGuidGroup(OriginID);
+            _originObj.SetSceneGuidGroup(_newID);
+            var newNetworkObj = Object.Instantiate(_originObj, _parent.transform, _worldPositionStays);
+            _originObj.SetSceneGuidGroup(_originID);
 
             newNetworkObj.OnNetworkInstantiate();
         }
