@@ -1,4 +1,4 @@
-using EventNetworking.Component;
+using Plugins.EventNetworking.Component;
 using UnityEngine;
 
 public class IdentificationTest : NetworkObject

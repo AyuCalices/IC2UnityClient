@@ -1,4 +1,4 @@
-namespace EventNetworking.Core.Callbacks
+namespace Plugins.EventNetworking.Core.Callbacks
 {
     public interface IOnBeforeLoseOwnership
     {

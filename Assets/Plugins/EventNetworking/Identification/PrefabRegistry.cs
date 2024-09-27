@@ -1,8 +1,8 @@
 using System.Collections.Generic;
-using EventNetworking.Component;
+using Plugins.EventNetworking.Component;
 using UnityEngine;
 
-namespace EventNetworking.Identification
+namespace Plugins.EventNetworking.Identification
 {
     public class PrefabRegistry : ScriptableObject
     {

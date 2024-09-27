@@ -1,45 +1,59 @@
 using System.Collections.Generic;
-using EventNetworking.Component;
-using EventNetworking.Core;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.Core;
 using UnityEngine;
 
 namespace Durak
 {
-    public class CardSpawner : MonoBehaviour
+    public class CardSpawner : NetworkObject
     {
+        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
         [SerializeField] private CardDeck cardDeck;
         [SerializeField] private CardController cardControllerPrefab; 
         [SerializeField] private CardHandManager handManager;
         [SerializeField] private int targetCardCount;
 
-        private readonly Dictionary<NetworkConnection, List<Card>> _playerCards = new();
-
         public void DrawCardsForAll()
         {
             foreach (var connection in NetworkManager.Instance.LobbyConnections)
             {
-                DrawCardsForPlayer(connection);
+                DrawCardsForPlayer(connection, targetCardCount);
             }
         }
 
-        private void DrawCardsForPlayer(NetworkConnection networkConnection)
+        /// <summary>
+        /// No Race-Condition security!
+        /// </summary>
+        public void ForceAddCardForPlayer(NetworkConnection networkConnection, int count = 1)
         {
             var cards = SaveGetCards(networkConnection);
                 
-            var newCards = DrawCards(cards, targetCardCount);
+            var newCards = DrawCards(cards, cards.Count + count);
 
             if (networkConnection.Equals(NetworkManager.Instance.LocalConnection))
             {
-                InstantiateCards(newCards);
+                InstantiateHandCards(newCards);
+            }
+        }
+
+        private void DrawCardsForPlayer(NetworkConnection networkConnection, int cardCount)
+        {
+            var cards = SaveGetCards(networkConnection);
+                
+            var newCards = DrawCards(cards, cardCount);
+
+            if (networkConnection.Equals(NetworkManager.Instance.LocalConnection))
+            {
+                InstantiateHandCards(newCards);
             }
         }
 
         private List<Card> SaveGetCards(NetworkConnection networkConnection)
         {
-            if (!_playerCards.TryGetValue(networkConnection, out List<Card> cards))
+            if (!playerCardsRuntimeDictionary.TryGetValue(networkConnection, out List<Card> cards))
             {
                 cards = new List<Card>();
-                _playerCards.Add(networkConnection, cards);
+                playerCardsRuntimeDictionary.Add(networkConnection, cards);
             }
 
             return cards;
@@ -52,19 +66,18 @@ namespace Durak
             return newCards;
         }
 
-        private void InstantiateCards(List<Card> cards)
+        private void InstantiateHandCards(List<Card> cards)
         {
             foreach (var card in cards)
             {
-                InstantiateCard(card);
+                InstantiateHandCard(card);
             }
         }
 
-        private void InstantiateCard(Card card)
+        private void InstantiateHandCard(Card card)
         {
             CardController newCard = Instantiate(cardControllerPrefab, transform, false);
-            newCard.SetCard(card);
-            handManager.AddCard(newCard.gameObject);
+            newCard.SetCard(this, card, typeof(HandState));
         }
     }
 }

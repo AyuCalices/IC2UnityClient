@@ -1,8 +1,8 @@
-using EventNetworking.Component;
-using EventNetworking.Core;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.Core;
 using UnityEngine;
 
-namespace EventNetworking.NetworkEvent
+namespace Plugins.EventNetworking.NetworkEvent
 {
     public readonly struct InstantiatePosRotParentEvent : INetworkEvent
     {
@@ -10,8 +10,8 @@ namespace EventNetworking.NetworkEvent
         private readonly string _originID;
         private readonly string _newID;
         private readonly NetworkConnection _networkConnection;
-        private readonly Vector3 _position;
-        private readonly Quaternion _rotation;
+        private readonly (float x, float y, float z) _position;
+        private readonly (float x, float y, float z, float w) _rotation;
         private readonly NetworkObject _parent;
 
         public InstantiatePosRotParentEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection, 
@@ -21,8 +21,8 @@ namespace EventNetworking.NetworkEvent
             _originID = originObj.SceneGuid;
             _newID = newID;
             _networkConnection = networkConnection;
-            _position = position;
-            _rotation = rotation;
+            _position = (position.x, position.y, position.z);
+            _rotation = (rotation.x, rotation.y, rotation.z, rotation.w);
             _parent = parent;
         }
 
@@ -31,7 +31,10 @@ namespace EventNetworking.NetworkEvent
             if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
         
             _originObj.SetSceneGuidGroup(_newID);
-            var newNetworkObj = Object.Instantiate(_originObj, _position, _rotation, _parent.transform);
+            var position = new Vector3(_position.x, _position.y, _position.z);
+            var rotation = new Quaternion(_rotation.x, _rotation.y, _rotation.z, _rotation.w);
+            Debug.LogWarning(_parent.name);
+            var newNetworkObj = Object.Instantiate(_originObj, position, rotation, _parent.transform);
             _originObj.SetSceneGuidGroup(_originID);
         
             newNetworkObj.OnNetworkInstantiate();

@@ -5,15 +5,16 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using EventNetworking.Component;
-using EventNetworking.DataTransferObject;
-using EventNetworking.Identification;
-using EventNetworking.NetworkEvent;
+using JetBrains.Annotations;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.DataTransferObject;
+using Plugins.EventNetworking.Identification;
+using Plugins.EventNetworking.NetworkEvent;
 using Unity.Plastic.Newtonsoft.Json;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 using UnityEngine;
 
-namespace EventNetworking.Core
+namespace Plugins.EventNetworking.Core
 {
     public class NetworkController
     {
@@ -103,9 +104,9 @@ namespace EventNetworking.Core
             }
         }
         
-        public void RequestRaiseEvent<T>(T lockstepEvent, bool cacheEvent = false) where T : struct, INetworkEvent
+        public void RequestRaiseEvent<T>(T networkEvent, bool cacheEvent = false) where T : INetworkEvent
         {
-            var serializedEvent = SerializeNetworkEvent(lockstepEvent, cacheEvent ? CacheEventRequest : EventRequest);
+            var serializedEvent = SerializeNetworkEvent(networkEvent, cacheEvent ? CacheEventRequest : EventRequest);
             SendMessageToServer(serializedEvent);
         }
         
@@ -274,31 +275,36 @@ namespace EventNetworking.Core
                 Debug.LogError($"WebSocket error during message reception: {ex.Message}");
             }
         }
-        
-        private string SerializeNetworkEvent<T>(T lockstepEvent, string eventType) where T : struct, INetworkEvent
+
+        private RPCRequestData CreateRPCRequestData<T>(T networkEvent, string eventType) where T : INetworkEvent
         {
-            var fieldInfos = lockstepEvent.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            var propertyInfos = lockstepEvent.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var fieldInfos = networkEvent.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var propertyInfos = networkEvent.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
             
             var jObject = new JArray();
             
             foreach (var fieldInfo in fieldInfos)
             {
-                var serializedObj = ConvertToSerializable(fieldInfo.GetValue(lockstepEvent));
+                var serializedObj = ConvertToSerializable(fieldInfo.GetValue(networkEvent), eventType);
                 jObject.Add(JToken.FromObject(serializedObj));
             }
             
             foreach (var propertyInfo in propertyInfos)
             {
-                var serializedObj = ConvertToSerializable(propertyInfo.GetValue(lockstepEvent));
+                var serializedObj = ConvertToSerializable(propertyInfo.GetValue(networkEvent), eventType);
                 jObject.Add(JToken.FromObject(serializedObj));
             }
             
-            var rpcRequest = new RPCRequestData
+            return new RPCRequestData
             {
-                lockstepType = lockstepEvent.GetType().AssemblyQualifiedName,
+                lockstepType = networkEvent.GetType().AssemblyQualifiedName,
                 Data = jObject
             };
+        }
+        
+        private string SerializeNetworkEvent<T>(T networkEvent, string eventType) where T : INetworkEvent
+        {
+            var rpcRequest = CreateRPCRequestData(networkEvent, eventType);
 
             var message = new
             {
@@ -309,7 +315,7 @@ namespace EventNetworking.Core
             return JsonConvert.SerializeObject(message);
         }
 
-        private object ConvertToSerializable(object obj)
+        private object ConvertToSerializable(object obj, string eventType)
         {
             if (obj is NetworkObject networkObject)
             {
@@ -330,6 +336,16 @@ namespace EventNetworking.Core
             if (obj is NetworkConnection networkConnection)
             {
                 return networkConnection.ConnectionID;
+            }
+
+            if (obj is INetworkEvent[] networkEventGroup)
+            {
+                RPCRequestData[] finalString = new RPCRequestData[networkEventGroup.Length];
+                for (var index = 0; index < networkEventGroup.Length; index++)
+                {
+                    finalString[index] = CreateRPCRequestData(networkEventGroup[index], eventType);
+                }
+                return finalString;
             }
 
             return obj;
@@ -389,7 +405,7 @@ namespace EventNetworking.Core
                     return networkObject;
                 }
                 
-                Debug.LogWarning($"Couldn't identify any {typeof(NetworkObject)} with id {id}.");
+                Debug.LogWarning($"Couldn't identify any {targetType} with id {id}.");
                 return null;
             }
             
@@ -398,9 +414,35 @@ namespace EventNetworking.Core
                 return new NetworkConnection(obj.ToObject<string>());
             }
 
+            if (typeof(INetworkEvent[]).IsAssignableFrom(targetType))
+            {
+                var elements = obj.ToObject<RPCRequestData[]>();
+                
+                var networkEvents = new INetworkEvent[elements.Length];
+                for (var i = 0; i < elements.Length; i++)
+                {
+                    networkEvents[i] = DeserializeNetworkEvent(elements[i]);
+                    networkEvents[i].PerformEvent();
+                }
+
+                return networkEvents;
+            }
+
             return obj.ToObject(targetType);
         }
 
         #endregion
+    }
+    
+    public readonly struct NetworkEventGroup : INetworkEvent
+    {
+        [UsedImplicitly] private readonly INetworkEvent[] _networkEvents;
+
+        public NetworkEventGroup(params INetworkEvent[] networkEvents)
+        {
+            _networkEvents = networkEvents;
+        }
+        
+        public void PerformEvent() { }
     }
 }

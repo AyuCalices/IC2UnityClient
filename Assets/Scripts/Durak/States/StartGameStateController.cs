@@ -1,5 +1,5 @@
-using EventNetworking.Component;
-using EventNetworking.NetworkEvent;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.NetworkEvent;
 using UnityEngine;
 
 namespace Durak.States

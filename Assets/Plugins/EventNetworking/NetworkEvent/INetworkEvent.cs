@@ -1,4 +1,4 @@
-namespace EventNetworking.NetworkEvent
+namespace Plugins.EventNetworking.NetworkEvent
 {
     public interface INetworkEvent
     {

@@ -12,7 +12,6 @@ GameObject:
   - component: {fileID: 3041711416401734084}
   - component: {fileID: 7941121832782458775}
   - component: {fileID: 3572880464842185253}
-  - component: {fileID: 6233707064609304596}
   m_Layer: 5
   m_Name: PlategridCanvas
   m_TagString: Untagged
@@ -103,20 +102,6 @@ MonoBehaviour:
   m_BlockingMask:
     serializedVersion: 2
     m_Bits: 4294967295
---- !u!114 &6233707064609304596
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1729241920764841759}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 18e8c4b5dcd9e444abca34b41ba0aab5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  cardSlotBehaviourPrefab: {fileID: 6605339696945408472, guid: cee7bb62cf0e00b40816d741ad07f348, type: 3}
-  parent: {fileID: 7871653701497670693}
 --- !u!1 &1866448705585726921
 GameObject:
   m_ObjectHideFlags: 0
@@ -129,6 +114,7 @@ GameObject:
   - component: {fileID: 6830061060059960517}
   - component: {fileID: 5728008496042368462}
   - component: {fileID: 3692362690367773822}
+  - component: {fileID: 3368270606963046442}
   m_Layer: 5
   m_Name: PlateSlot
   m_TagString: Untagged
@@ -217,3 +203,21 @@ MonoBehaviour:
   m_Spacing: {x: 50, y: 50}
   m_Constraint: 0
   m_ConstraintCount: 2
+--- !u!114 &3368270606963046442
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1866448705585726921}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18e8c4b5dcd9e444abca34b41ba0aab5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  serializeFieldSceneGuid: 
+  prefabPath: 
+  migrateOwnerOnLeaveLobby: 0
+  playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
+  cardSlotBehaviourPrefab: {fileID: 6605339696945408472, guid: cee7bb62cf0e00b40816d741ad07f348, type: 3}
+  instantiatedCardSlots: []

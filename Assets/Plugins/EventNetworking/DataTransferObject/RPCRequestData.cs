@@ -1,7 +1,7 @@
 using System;
 using Unity.Plastic.Newtonsoft.Json.Linq;
 
-namespace EventNetworking.DataTransferObject
+namespace Plugins.EventNetworking.DataTransferObject
 {
     [Serializable]
     public struct RPCRequestData

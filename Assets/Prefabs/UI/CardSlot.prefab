@@ -88,4 +88,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c9e942b5092e08458565e3561bd59f4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  serializeFieldSceneGuid: 
+  prefabPath: Assets/Prefabs/UI/CardSlot.prefab
+  migrateOwnerOnLeaveLobby: 0
+  playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
   trumpType: {fileID: 11400000, guid: 1b1612c335e8d50408e4969d8f640428, type: 2}

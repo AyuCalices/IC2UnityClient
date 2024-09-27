@@ -1,7 +1,7 @@
-using EventNetworking.Component;
-using EventNetworking.Core;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.Core;
 
-namespace EventNetworking.NetworkEvent
+namespace Plugins.EventNetworking.NetworkEvent
 {
     public readonly struct SaveRequestOwnershipEvent : INetworkEvent
     {

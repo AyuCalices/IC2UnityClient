@@ -1,6 +1,6 @@
 using System;
 
-namespace EventNetworking.Core
+namespace Plugins.EventNetworking.Core
 {
     [Serializable]
     public struct NetworkConnection : IEquatable<NetworkConnection>

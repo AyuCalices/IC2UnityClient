@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace EventNetworking
+namespace Plugins.EventNetworking
 {
     public static class UnityUtility
     {

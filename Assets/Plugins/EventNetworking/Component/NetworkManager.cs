@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
-using EventNetworking.Core;
-using EventNetworking.DataTransferObject;
-using EventNetworking.Identification;
-using EventNetworking.NetworkEvent;
+using Plugins.EventNetworking.Core;
+using Plugins.EventNetworking.DataTransferObject;
+using Plugins.EventNetworking.Identification;
+using Plugins.EventNetworking.NetworkEvent;
 using UnityCommunity.UnitySingleton;
 using UnityEngine;
-using UnityEngine.Serialization;
 
-namespace EventNetworking.Component
+namespace Plugins.EventNetworking.Component
 {
     public enum ErrorType { LobbyAlreadyExists, AlreadyInLobby, LobbyNotFound, LobbyFull, InvalidPassword, NotInLobby, NoLobbyJoined }
     
@@ -132,69 +131,67 @@ namespace EventNetworking.Component
 
         #region Public Instantiation
         
-        public void RequestRaiseEvent<T>(T lockstepEvent, bool cacheEvent = false) where T : struct, INetworkEvent
+        public void RequestRaiseEvent<T>(T networkEvent, bool cacheEvent = false) where T : INetworkEvent
         {
-            _networkController.RequestRaiseEvent(lockstepEvent, cacheEvent);
+            _networkController.RequestRaiseEvent(networkEvent, cacheEvent);
         }
 
-        public NetworkObject NetworkInstantiate(NetworkObject networkObject)
+        private TNetworkObject HandleNetworkInstantiation<TNetworkObject, TNetworkEvent>(TNetworkObject newNetworkObject, TNetworkEvent instantiationEvent, 
+            Func<TNetworkObject, INetworkEvent> onCompleteEvent = null) where TNetworkEvent : INetworkEvent where TNetworkObject : NetworkObject
+        {
+            // Handle the event
+            if (onCompleteEvent != null)
+            {
+                var networkEventGroup = new NetworkEventGroup(instantiationEvent, onCompleteEvent.Invoke(newNetworkObject));
+                RequestRaiseEvent(networkEventGroup, true);
+            }
+            else
+            {
+                RequestRaiseEvent(instantiationEvent, true);
+            }
+
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
+        }
+
+        public T NetworkInstantiate<T>(T networkObject, 
+            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
         {
             var newNetworkObject = Instantiate(networkObject);
-            var newID = newNetworkObject.SceneGuid;
-        
-            var instantiationEvent = new InstantiateEvent(networkObject, newID, LocalConnection);
-            RequestRaiseEvent(instantiationEvent, true);
-
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+            var instantiationEvent = new InstantiateEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
         }
         
-        public NetworkObject NetworkInstantiate(NetworkObject networkObject, Vector3 position, Quaternion rotation)
+        public T NetworkInstantiate<T>(T networkObject, Vector3 position, Quaternion rotation, 
+            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
         {
             var newNetworkObject = Instantiate(networkObject, position, rotation);
-            var newID = newNetworkObject.SceneGuid;
-        
-            var instantiationEvent = new InstantiatePosRotEvent(networkObject, newID, LocalConnection, position, rotation);
-            RequestRaiseEvent(instantiationEvent, true);
-
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+            var instantiationEvent = new InstantiatePosRotEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, position, rotation);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
         }
-        
-        public NetworkObject NetworkInstantiate(NetworkObject networkObject, Vector3 position, Quaternion rotation, NetworkObject parent)
+
+        public T NetworkInstantiate<T>(T networkObject, Vector3 position, Quaternion rotation, NetworkObject parent, 
+            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
         {
             var newNetworkObject = Instantiate(networkObject, position, rotation, parent.transform);
-            var newID = newNetworkObject.SceneGuid;
-        
-            var instantiationEvent = new InstantiatePosRotParentEvent(networkObject, newID, LocalConnection, position, rotation, parent);
-            RequestRaiseEvent(instantiationEvent, true);
-
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+            var instantiationEvent = new InstantiatePosRotParentEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, position, rotation, parent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
         }
-        
-        public NetworkObject NetworkInstantiate(NetworkObject networkObject, NetworkObject parent)
+
+        public T NetworkInstantiate<T>(T networkObject, NetworkObject parent, 
+            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
         {
             var newNetworkObject = Instantiate(networkObject, parent.transform);
-            var newID = newNetworkObject.SceneGuid;
-        
-            var instantiationEvent = new InstantiateParentEvent(networkObject, newID, LocalConnection, parent);
-            RequestRaiseEvent(instantiationEvent, true);
-
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+            var instantiationEvent = new InstantiateParentEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, parent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
         }
-        
-        public NetworkObject NetworkInstantiate(NetworkObject networkObject, NetworkObject parent, bool worldPositionStays)
-        {
-            var newNetworkObject = Instantiate(networkObject, parent.transform);
-            var newID = newNetworkObject.SceneGuid;
-        
-            var instantiationEvent = new InstantiateParentStaysEvent(networkObject, newID, LocalConnection, parent, worldPositionStays);
-            RequestRaiseEvent(instantiationEvent, true);
 
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+        public T NetworkInstantiate<T>(T networkObject, NetworkObject parent, bool worldPositionStays, 
+            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        {
+            var newNetworkObject = Instantiate(networkObject, parent.transform, worldPositionStays);
+            var instantiationEvent = new InstantiateParentStaysEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, parent, worldPositionStays);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
         }
         
         public void NetworkDestroy(NetworkObject networkObject)
@@ -263,7 +260,6 @@ namespace EventNetworking.Component
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyCreated(ReceivedMessage receivedMessage)
         {
             if (debug)
@@ -279,7 +275,6 @@ namespace EventNetworking.Component
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyJoining(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
         {
             if (debug)
@@ -298,7 +293,6 @@ namespace EventNetworking.Component
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnLobbyJoined(ReceivedMessage receivedMessage, JoinLobbyClientData joinLobbyClientData)
         {
             if (debug)
@@ -312,7 +306,6 @@ namespace EventNetworking.Component
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnClientJoinedLobby(ReceivedMessage receivedMessage, NetworkConnection joinedClient)
         {
             if (debug)
@@ -328,7 +321,6 @@ namespace EventNetworking.Component
             }
         }
 
-        //TODO: the lobby stuff is not buffered by event
         internal void OnLeaveLobby(ReceivedMessage receivedMessage)
         {
             if (debug)

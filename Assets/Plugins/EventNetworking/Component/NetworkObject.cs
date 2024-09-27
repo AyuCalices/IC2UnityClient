@@ -1,14 +1,14 @@
 using System;
 using System.Linq;
-using EventNetworking.Core;
-using EventNetworking.Core.Callbacks;
-using EventNetworking.DataTransferObject;
-using EventNetworking.Identification;
-using EventNetworking.NetworkEvent;
+using Plugins.EventNetworking.Core;
+using Plugins.EventNetworking.Core.Callbacks;
+using Plugins.EventNetworking.DataTransferObject;
+using Plugins.EventNetworking.Identification;
+using Plugins.EventNetworking.NetworkEvent;
 using UnityEditor;
 using UnityEngine;
 
-namespace EventNetworking.Component
+namespace Plugins.EventNetworking.Component
 {
     public class NetworkObject : MonoBehaviour, ICreateGameObjectHierarchy, IChangeComponentProperties, IChangeGameObjectProperties, IChangeGameObjectStructure, IChangeGameObjectStructureHierarchy
     {
@@ -36,7 +36,7 @@ namespace EventNetworking.Component
     
         protected virtual void Awake()
         {
-            SetupSceneGuid();
+            SetupSceneGuid(true);
         }
 
         protected virtual void OnValidate()
@@ -108,8 +108,22 @@ namespace EventNetworking.Component
         {
             _resetBufferSceneGuid = serializeFieldSceneGuid;
         }
+
+        private void SetupEditorAll()
+        {
+            if (gameObject.scene.name != null)
+            {
+                SetupSceneGuid(false);
+            }
+            else
+            {
+                ResetSceneGuid();
+            }
         
-        private void SetupSceneGuid()
+            SetDirty(this);
+        }
+        
+        private void SetupSceneGuid(bool isRuntime)
         {
             var networkManager = NetworkManager.Instance;
             
@@ -131,21 +145,11 @@ namespace EventNetworking.Component
             else
             {
                 SetSceneGuidGroup(Guid.NewGuid().ToString());
+                if (isRuntime)
+                {
+                    networkManager.NetworkObjects.Add(serializeFieldSceneGuid, this);
+                }
             }
-        }
-
-        private void SetupEditorAll()
-        {
-            if (gameObject.scene.name != null)
-            {
-                SetupSceneGuid();
-            }
-            else
-            {
-                ResetSceneGuid();
-            }
-        
-            SetDirty(this);
         }
 
         private void ResetSceneGuid()

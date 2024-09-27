@@ -1,7 +1,7 @@
-using EventNetworking.Component;
+using Plugins.EventNetworking.Component;
 using UnityEngine;
 
-namespace EventNetworking.NetworkEvent
+namespace Plugins.EventNetworking.NetworkEvent
 {
     public readonly struct DestroyEvent : INetworkEvent
     {

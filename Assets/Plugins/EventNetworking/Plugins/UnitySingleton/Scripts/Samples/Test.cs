@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace EventNetworking.Plugins.UnitySingleton.Scripts.Samples
+namespace Plugins.EventNetworking.Plugins.UnitySingleton.Scripts.Samples
 {
 
     public class Test : MonoBehaviour

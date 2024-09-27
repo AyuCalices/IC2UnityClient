@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace EventNetworking.Identification
+namespace Plugins.EventNetworking.Identification
 {
     [InitializeOnLoad]
     public class ObjectChangeEventListener

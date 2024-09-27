@@ -1,6 +1,6 @@
 using System;
 
-namespace EventNetworking.DataTransferObject
+namespace Plugins.EventNetworking.DataTransferObject
 {
     [Serializable]
     public struct JoinLobbyClientData

@@ -1,8 +1,8 @@
-using EventNetworking.Component;
-using EventNetworking.Core;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.Core;
 using UnityEngine;
 
-namespace EventNetworking.NetworkEvent
+namespace Plugins.EventNetworking.NetworkEvent
 {
     public readonly struct InstantiateParentStaysEvent : INetworkEvent
     {

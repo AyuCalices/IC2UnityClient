@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using EventNetworking.Component;
+using Plugins.EventNetworking.Component;
 using UnityEditor;
 using UnityEngine;
 using Random = UnityEngine.Random;

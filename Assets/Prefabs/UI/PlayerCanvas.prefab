@@ -151,6 +151,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03061d58ee596cb45a262d9f1a3e1317, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  serializeFieldSceneGuid: 
+  prefabPath: 
+  migrateOwnerOnLeaveLobby: 0
+  playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
   cardDeck: {fileID: 0}
   cardControllerPrefab: {fileID: 2742030220783827068, guid: b391c4a4a54caad40a2dee870b317014, type: 3}
   handManager: {fileID: 3979198600435795932}

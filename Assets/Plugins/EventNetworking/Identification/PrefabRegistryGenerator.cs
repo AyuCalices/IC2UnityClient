@@ -1,9 +1,9 @@
 using System.IO;
-using EventNetworking.Component;
+using Plugins.EventNetworking.Component;
 using UnityEditor;
 using UnityEngine;
 
-namespace EventNetworking.Identification
+namespace Plugins.EventNetworking.Identification
 {
     [InitializeOnLoad]
     public class PrefabRegistryGenerator : AssetPostprocessor

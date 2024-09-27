@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace EventNetworking.Identification
+namespace Plugins.EventNetworking.Identification
 {
     public interface IChangeGameObjectParent
     {

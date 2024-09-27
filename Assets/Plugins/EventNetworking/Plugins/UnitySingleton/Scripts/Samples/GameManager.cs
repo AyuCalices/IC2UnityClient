@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-namespace EventNetworking.Plugins.UnitySingleton.Scripts.Samples
+namespace Plugins.EventNetworking.Plugins.UnitySingleton.Scripts.Samples
 {
 
     public class GameManager : PersistentMonoSingleton<GameManager>

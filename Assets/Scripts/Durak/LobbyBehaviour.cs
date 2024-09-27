@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using EventNetworking.Component;
-using EventNetworking.Core;
-using EventNetworking.DataTransferObject;
-using EventNetworking.NetworkEvent;
+using Plugins.EventNetworking.Component;
+using Plugins.EventNetworking.Core;
+using Plugins.EventNetworking.DataTransferObject;
+using Plugins.EventNetworking.NetworkEvent;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;

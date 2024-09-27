@@ -1,4 +1,4 @@
-namespace EventNetworking.Identification
+namespace Plugins.EventNetworking.Identification
 {
     internal interface IChangeComponentProperties
     {
