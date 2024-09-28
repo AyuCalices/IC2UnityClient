@@ -11,9 +11,11 @@ namespace Durak
     {
         [SerializeField] private TrumpTypeFocus trumpTypeFocus;
         [SerializeField] private List<CardGenerator> cardGenerators;
+        [SerializeField] private int maxCardCount;
         [SerializeField] private bool useSeed;
         [SerializeField] private int shuffleSeed;
-        
+
+        private int _cardCountDelta;
         private List<Card> _drawableCards = new();
         
         public int GenerateSeed() => useSeed ? shuffleSeed : Guid.NewGuid().GetHashCode();
@@ -23,6 +25,12 @@ namespace Durak
             foreach (var cardGenerator in cardGenerators)
             {
                 _drawableCards.Add(cardGenerator.Generate());
+                
+                _cardCountDelta++;
+                if (_cardCountDelta >= maxCardCount)
+                {
+                    break;
+                }
             }
             
             Random.InitState(seed);
@@ -49,19 +57,29 @@ namespace Durak
             }
         }
 
-        public Card DrawCard()
+        public bool IsEmpty() => _drawableCards.Count == 0;
+
+        public bool TryDrawCard(out Card card)
         {
-            Card card = _drawableCards[^1];
+            card = default;
+            if (_drawableCards.Count == 0) return false;
+            
+            card = _drawableCards[^1];
             _drawableCards.RemoveAt(_drawableCards.Count - 1);
-            return card;
+            return true;
         }
         
-        public List<Card> DrawCards(int drawCount)
+        public List<Card> TryDrawCards(int drawCount)
         {
-            if (drawCount < 0) return new List<Card>();
+            if (drawCount < 0 || _drawableCards.Count == 0) return new List<Card>();
+
+            if (drawCount > _drawableCards.Count)
+            {
+                drawCount = _drawableCards.Count;
+            }
             
-            var cards = _drawableCards.GetRange(_drawableCards.Count - 1 - drawCount, drawCount);
-            _drawableCards.RemoveRange(_drawableCards.Count - 1 - drawCount, drawCount);
+            var cards = _drawableCards.GetRange(_drawableCards.Count - drawCount, drawCount);
+            _drawableCards.RemoveRange(_drawableCards.Count - drawCount, drawCount);
             return cards;
         }
         

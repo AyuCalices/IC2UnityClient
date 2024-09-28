@@ -18,6 +18,7 @@ namespace Durak.States
         [SerializeField] private TableCardsRuntimeSet tableCardsRuntimeSet;
         [SerializeField] private GameStateManager gameStateManager;
         [SerializeField] private CardSpawner cardSpawner;
+        [SerializeField] private CardDeck cardDeck;
         
         private readonly Dictionary<NetworkConnection, bool> _attackerGiveUpLookup = new();
     
@@ -27,13 +28,46 @@ namespace Durak.States
             AttackerGiveUpEvent.OnAttackerGiveUp = OnAttackerGiveUp;
             
             StartGameState.OnStartGameCompleted += EnterTurnState;
-            CardSlotBehaviour.OnPlacedCard += SetupAttackerGiveUpState;
+            CardSlotBehaviour.OnCardPlaced += OnCardPlaced;
         }
 
         private void OnDestroy()
         {
             StartGameState.OnStartGameCompleted -= EnterTurnState;
-            CardSlotBehaviour.OnPlacedCard -= SetupAttackerGiveUpState;
+            CardSlotBehaviour.OnCardPlaced -= OnCardPlaced;
+        }
+
+        private void OnCardPlaced()
+        {
+            int notCompletedCount = 0;
+            foreach (var (networkConnection, cards) in playerCardsRuntimeDictionary.GetItems())
+            {
+                if (cards.Count == 0 && cardDeck.IsEmpty())
+                {
+                    Debug.LogWarning($"Player with networkConnection {networkConnection} is done!");
+
+                    if (networkConnection.Equals(gameData.DefenderNetworkConnection))
+                    {
+                        OnDefenderTurnWin();
+                    }
+                }
+                else
+                {
+                    notCompletedCount++;
+                }
+            }
+
+            if (notCompletedCount <= 1)
+            {
+                //TODO: put these 4 lines into the end of a turn state
+                OnDestroyTableCards?.Invoke();
+                var cards = tableCardsRuntimeSet.GetItems();
+                gameData.DestroyedCards.AddRange(cards);
+                tableCardsRuntimeSet.Restore();
+                gameStateManager.RequestState(new EndGameState());
+            }
+
+            SetupAttackerGiveUpState();
         }
 
         private void EnterTurnState()
@@ -104,14 +138,18 @@ namespace Durak.States
             
             if (_attackerGiveUpLookup.All(x => x.Value))
             {
-                OnDestroyTableCards?.Invoke();
-                var cards = tableCardsRuntimeSet.GetItems();
-                gameData.DestroyedCards.AddRange(cards);
-                tableCardsRuntimeSet.Restore();
-                
-                gameStateManager.RequestState(new TurnState(gameData, cardSpawner, 1));
+                OnDefenderTurnWin();
                 SetupAttackerGiveUpState();
             }
+        }
+
+        private void OnDefenderTurnWin()
+        {
+            OnDestroyTableCards?.Invoke();
+            var cards = tableCardsRuntimeSet.GetItems();
+            gameData.DestroyedCards.AddRange(cards);
+            tableCardsRuntimeSet.Restore();
+            gameStateManager.RequestState(new TurnState(gameData, cardSpawner, 1));
         }
     }
 

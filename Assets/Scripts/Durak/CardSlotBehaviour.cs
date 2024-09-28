@@ -12,7 +12,7 @@ namespace Durak
 {
     public class CardSlotBehaviour : NetworkObject, IDropHandler
     {
-        public static event Action OnPlacedCard;
+        public static event Action OnCardPlaced;
         
         [SerializeField] private GameData gameData;
         [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
@@ -107,7 +107,7 @@ namespace Durak
             cards.Remove(firstCardController.Card);
             tableCardsRuntimeSet.Add(firstCardController.Card);
             
-            OnPlacedCard?.Invoke();
+            OnCardPlaced?.Invoke();
         }
 
         public void InitializeSecondSlot(NetworkConnection networkConnection, CardController secondCardController)
@@ -118,7 +118,7 @@ namespace Durak
             cards.Remove(secondCardController.Card);
             tableCardsRuntimeSet.Add(secondCardController.Card);
             
-            OnPlacedCard?.Invoke();
+            OnCardPlaced?.Invoke();
         }
 
         private void PlaceCard(CardController targetCard, bool isTop)

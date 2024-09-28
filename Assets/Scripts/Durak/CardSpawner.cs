@@ -26,7 +26,7 @@ namespace Durak
         /// </summary>
         public void ForceAddCardForPlayer(NetworkConnection networkConnection, int count = 1)
         {
-            var cards = SaveGetCards(networkConnection);
+            var cards = GetCurrentCards(networkConnection);
                 
             var newCards = DrawCards(cards, cards.Count + count);
 
@@ -38,7 +38,7 @@ namespace Durak
 
         private void DrawCardsForPlayer(NetworkConnection networkConnection, int cardCount)
         {
-            var cards = SaveGetCards(networkConnection);
+            var cards = GetCurrentCards(networkConnection);
                 
             var newCards = DrawCards(cards, cardCount);
 
@@ -48,7 +48,7 @@ namespace Durak
             }
         }
 
-        private List<Card> SaveGetCards(NetworkConnection networkConnection)
+        private List<Card> GetCurrentCards(NetworkConnection networkConnection)
         {
             if (!playerCardsRuntimeDictionary.TryGetValue(networkConnection, out List<Card> cards))
             {
@@ -61,7 +61,7 @@ namespace Durak
 
         private List<Card> DrawCards(List<Card> cards, int targetCount)
         {
-            var newCards = cardDeck.DrawCards(targetCount - cards.Count);
+            var newCards = cardDeck.TryDrawCards(targetCount - cards.Count);
             cards.AddRange(newCards);
             return newCards;
         }

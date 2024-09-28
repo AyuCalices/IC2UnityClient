@@ -326,6 +326,7 @@ MonoBehaviour:
   tableCardsRuntimeSet: {fileID: 11400000, guid: 32506f9d4f315a54eb16495ca8b275d9, type: 2}
   gameStateManager: {fileID: 379917401}
   cardSpawner: {fileID: 657877139}
+  cardDeck: {fileID: 1458225461}
 --- !u!1 &425409161
 GameObject:
   m_ObjectHideFlags: 0
@@ -1364,6 +1365,10 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1458225461}
     - target: {fileID: 2584523494698242989, guid: 9e6b353729c62974db633a9c10700c5f, type: 3}
+      propertyPath: targetCardCount
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 2584523494698242989, guid: 9e6b353729c62974db633a9c10700c5f, type: 3}
       propertyPath: serializeFieldSceneGuid
       value: 71972b3b-8174-4dfd-9206-0ba4d21115ed
       objectReference: {fileID: 0}
@@ -1768,6 +1773,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: cd0c2cd0046800f4287f1498b07c249a, type: 2}
   - {fileID: 11400000, guid: c9174259fc2fca845b901dea44ce281e, type: 2}
   - {fileID: 11400000, guid: a9bcd3260237b4a4a87b427b8b4ca483, type: 2}
+  maxCardCount: 100
   useSeed: 0
   shuffleSeed: 0
 --- !u!4 &1458225462

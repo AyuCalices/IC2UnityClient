@@ -111,8 +111,7 @@ namespace Durak.States
         private readonly CardSpawner _cardSpawner;
         private readonly int _nextDefenderJump;
 
-        //TODO: add a button for giveup with all -> either destroy cards or give them the defender
-        //TODO: implement rotation
+        //TODO: implement logic to finish the game
 
         public TurnState(GameData gameData, CardSpawner cardSpawner, int nextDefenderJump)
         {
@@ -172,6 +171,7 @@ namespace Durak.States
     {
         public void Enter()
         {
+            Debug.LogWarning("Game Completed");
         }
 
         public void Execute()
