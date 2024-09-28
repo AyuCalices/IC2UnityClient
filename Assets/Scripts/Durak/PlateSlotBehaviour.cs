@@ -18,7 +18,7 @@ namespace Durak
             var pointerDrag = eventData.pointerDrag;
             if (pointerDrag.GetComponent<CardInteraction>().GetStateType() != typeof(DragState)) return;
 
-            var cardSlotBehaviour = NetworkManager.Instance.NetworkInstantiate(cardSlotBehaviourPrefab, this, 
+            var cardSlotBehaviour = NetworkManager.Instance.NetworkInstantiateObject(cardSlotBehaviourPrefab, this, 
                 cardSlotBehaviour => new PlateSlotInstantiationCompleteEvent(this, cardSlotBehaviour));
             
             cardSlotBehaviour.Initialize(pointerDrag.GetComponent<CardController>());

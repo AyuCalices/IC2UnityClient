@@ -423,7 +423,7 @@ MonoBehaviour:
   keepAliveInterval: 20
   defaultLobbyName: lobbyName
   defaultLobbyCapacity: 4
-  debug: 1
+  debug: 0
 --- !u!4 &547469252
 Transform:
   m_ObjectHideFlags: 0

@@ -11,24 +11,27 @@ namespace Durak
         [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
         [SerializeField] private Image image;
 
-        private CardSpawner _cardSpawner;
         private Card _containedCard;
-        
+
+        public Card Card => _containedCard;
         public CardType CardType => _containedCard.CardType;
         public CardInteraction CardInteraction { get; private set; }
-        public RectTransform RectTransform { get; private set; }
 
         protected override void Awake()
         {
             base.Awake();
             
             CardInteraction = GetComponent<CardInteraction>();
-            RectTransform = GetComponent<RectTransform>();
+        }
+        
+        public void SetCardByRuntimeDictionaryIndex(NetworkConnection networkConnection, int cardIndex, Type entryStateType)
+        {
+            var card = playerCardsRuntimeDictionary.GetCard(networkConnection, cardIndex);
+            SetCard(card, entryStateType);
         }
 
-        public void SetCard(CardSpawner cardSpawner, Card card, Type entryStateType)
+        public void SetCard(Card card, Type entryStateType)
         {
-            _cardSpawner = cardSpawner;
             _containedCard = card;
             image.sprite = _containedCard.Sprite;
 
@@ -40,11 +43,6 @@ namespace Durak
             {
                 CardInteraction.InitializeAsDroppedCard();
             }
-        }
-
-        public int GetCardIndex(NetworkConnection networkConnection)
-        {
-            return playerCardsRuntimeDictionary.FindCardIndex(networkConnection, _containedCard);
         }
 
         public bool IsTrump(TrumpTypeFocus trumpTypeFocus)

@@ -49,6 +49,8 @@ namespace Plugins.EventNetworking.Core
         private const string CacheEventRequest = "cacheEventRequest";
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
+        
+        private const BindingFlags DefaultFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
         
         //TODO: currently tightly coupled -> in a future version it must be less coupled
@@ -259,7 +261,7 @@ namespace Plugins.EventNetworking.Core
                                 break;
                             case EventResponse:     //this is a callback by definition
                                 var networkEvent = DeserializeNetworkEvent(JsonConvert.DeserializeObject<RPCRequestData>(receivedMessage.message));
-                                Debug.LogWarning("EventResponse: " + networkEvent.GetType());
+                                _networkManager.OnEventResponse(receivedMessage, networkEvent);
                                 networkEvent.PerformEvent();
                                 // Handle the data as needed
                                 break;
@@ -278,8 +280,8 @@ namespace Plugins.EventNetworking.Core
 
         private RPCRequestData CreateRPCRequestData<T>(T networkEvent, string eventType) where T : INetworkEvent
         {
-            var fieldInfos = networkEvent.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-            var propertyInfos = networkEvent.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var fieldInfos = networkEvent.GetType().GetFields(DefaultFlags);
+            var propertyInfos = networkEvent.GetType().GetProperties(DefaultFlags);
             
             var jObject = new JArray();
             
@@ -358,14 +360,14 @@ namespace Plugins.EventNetworking.Core
 
             var instance = Activator.CreateInstance(type);
             
-            var fieldInfos = instance.GetType().GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var fieldInfos = instance.GetType().GetFields(DefaultFlags);
             var fieldObjects = new object[fieldInfos.Length];
             for (var i = 0; i < fieldInfos.Length; i++)
             {
                 fieldObjects[i] = ConvertFromSerializable(_networkObjects, _prefabRegistry, fieldInfos[i].FieldType, rpcRequestData.Data[i]);
             }
             
-            var propertyInfos = instance.GetType().GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+            var propertyInfos = instance.GetType().GetProperties(DefaultFlags);
             var propertyObjects = new object[propertyInfos.Length];
             for (var i = 0; i < propertyInfos.Length; i++)
             {

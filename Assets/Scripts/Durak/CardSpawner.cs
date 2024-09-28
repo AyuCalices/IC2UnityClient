@@ -77,7 +77,7 @@ namespace Durak
         private void InstantiateHandCard(Card card)
         {
             CardController newCard = Instantiate(cardControllerPrefab, transform, false);
-            newCard.SetCard(this, card, typeof(HandState));
+            newCard.SetCard(card, typeof(HandState));
         }
     }
 }

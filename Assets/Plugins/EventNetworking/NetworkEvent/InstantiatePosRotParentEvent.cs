@@ -33,7 +33,6 @@ namespace Plugins.EventNetworking.NetworkEvent
             _originObj.SetSceneGuidGroup(_newID);
             var position = new Vector3(_position.x, _position.y, _position.z);
             var rotation = new Quaternion(_rotation.x, _rotation.y, _rotation.z, _rotation.w);
-            Debug.LogWarning(_parent.name);
             var newNetworkObj = Object.Instantiate(_originObj, position, rotation, _parent.transform);
             _originObj.SetSceneGuidGroup(_originID);
         

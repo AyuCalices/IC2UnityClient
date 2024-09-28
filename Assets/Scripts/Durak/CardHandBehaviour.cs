@@ -16,7 +16,7 @@ namespace Durak
         
         public void AddCard(GameObject newCard)
         {
-            cardsInHand.Add(newCard.GetComponent<RectTransform>());
+            cardsInHand.Add(newCard.transform as RectTransform);
             newCard.transform.SetParent(transform, true); // Set card parent to the CardHand object
             newCard.transform.rotation = Quaternion.identity;
             UpdateCardPositions();
@@ -24,7 +24,7 @@ namespace Durak
 
         public void RemoveCard(GameObject oldCard)
         {
-            cardsInHand.Remove(oldCard.GetComponent<RectTransform>());
+            cardsInHand.Remove(oldCard.transform as RectTransform);
             oldCard.transform.SetParent(null);
             UpdateCardPositions();
         }
@@ -53,7 +53,7 @@ namespace Durak
             if (!CanHover) return;
             
             //TODO: this always must be calculated from base positions of the card
-            float cardWidth = hoverCard.GetComponent<RectTransform>().rect.width;
+            float cardWidth = ((RectTransform)hoverCard.transform).rect.width;
 
             for (int i = 0; i < cardsInHand.Count; i++)
             {

@@ -102,6 +102,10 @@ namespace Durak.States
     public class TurnState : IState
     {
         private readonly CardSpawner _cardSpawner;
+        //TODO: define for players, if they defend or attack
+        //TODO: define the first attacker
+        //TODO: add a button for giveup with all -> either destroy cards or give them the defender
+        //TODO: implement rotation
 
         public TurnState(CardSpawner cardSpawner)
         {
@@ -115,7 +119,7 @@ namespace Durak.States
             var previousIndex = randomDefenderIndex - 1;
             var attackerIndex = previousIndex >= 0 ? previousIndex : NetworkManager.Instance.LobbyConnections.Count - 1;
             var defender = NetworkManager.Instance.LobbyConnections[randomDefenderIndex];
-            var attacker = NetworkManager.Instance.LobbyConnections[attackerIndex];
+            var firstAttacker = NetworkManager.Instance.LobbyConnections[attackerIndex];
         }
 
         public void Execute()

@@ -91,7 +91,6 @@ namespace Durak
         {
             _stateMachine.ChangeState(requestedState);
             _currentState = _stateMachine.GetCurrentState().ToString();
-            Debug.Log(_currentState);
         }
     }
     

@@ -8,13 +8,13 @@ public class IdentificationTest : NetworkObject
     [ContextMenu("Duplicate Instantiate")]
     private void DuplicateInstantiate()
     {
-        NetworkManager.Instance.NetworkInstantiate(GetComponent<NetworkObject>());
+        NetworkManager.Instance.NetworkInstantiateObject(GetComponent<NetworkObject>());
     }
     
     [ContextMenu("Network Instantiate")]
     private void NetworkInstantiate()
     {
-        NetworkManager.Instance.NetworkInstantiate(prefab);
+        NetworkManager.Instance.NetworkInstantiateObject(prefab);
     }
     
     [ContextMenu("Network Destroy")]
