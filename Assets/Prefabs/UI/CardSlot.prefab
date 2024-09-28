@@ -91,5 +91,7 @@ MonoBehaviour:
   serializeFieldSceneGuid: 
   prefabPath: Assets/Prefabs/UI/CardSlot.prefab
   migrateOwnerOnLeaveLobby: 0
+  gameData: {fileID: 11400000, guid: 8eaf3fb2c1bc42f40bef480082669deb, type: 2}
   playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
+  tableCardsRuntimeSet: {fileID: 11400000, guid: 32506f9d4f315a54eb16495ca8b275d9, type: 2}
   trumpType: {fileID: 11400000, guid: 1b1612c335e8d50408e4969d8f640428, type: 2}

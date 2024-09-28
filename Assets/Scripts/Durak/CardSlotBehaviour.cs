@@ -1,4 +1,7 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
+using Durak.States;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
 using Plugins.EventNetworking.NetworkEvent;
@@ -9,17 +12,61 @@ namespace Durak
 {
     public class CardSlotBehaviour : NetworkObject, IDropHandler
     {
-        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
-        [SerializeField] private TrumpTypeFocus trumpType;
+        public static event Action OnPlacedCard;
         
-        public CardController FirstCardController { get; set; }
-        public CardController SecondCardController { get; set; }
+        [SerializeField] private GameData gameData;
+        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
+        [SerializeField] private TableCardsRuntimeSet tableCardsRuntimeSet;
+        [SerializeField] private TrumpTypeFocus trumpType;
+
+        private CardController FirstCardController { get; set; }
+        private CardController SecondCardController { get; set; }
+
+        protected override void Awake()
+        {
+            base.Awake();
+
+            TurnStateController.OnPickupTableCards += PickupCard;
+            TurnStateController.OnDestroyTableCards += DestroyCardSlots;
+        }
+
+        private void OnDestroy()
+        {
+            TurnStateController.OnPickupTableCards -= PickupCard;
+            TurnStateController.OnDestroyTableCards -= DestroyCardSlots;
+        }
+
+        private void PickupCard()
+        {
+            if (SecondCardController != null)
+            {
+                SecondCardController.CardInteraction.InitializeAsHandCard();
+            }
+            
+            if (FirstCardController != null)
+            {
+                FirstCardController.CardInteraction.InitializeAsHandCard();
+                Destroy(gameObject);
+            }
+        }
+        
+        private void DestroyCardSlots()
+        {
+            if (SecondCardController != null)
+            {
+                Destroy(SecondCardController.gameObject);
+            }
+            
+            if (FirstCardController != null)
+            {
+                Destroy(FirstCardController.gameObject);
+                Destroy(gameObject);
+            }
+        }
 
         public void Initialize(CardController firstCardController)
         {
-            FirstCardController = firstCardController;
-            PlaceCard(FirstCardController, true);
-            StartCoroutine(FirstNetworkShareObject());
+            StartCoroutine(FirstNetworkShareObject(firstCardController));
         }
 
         public void OnDrop(PointerEventData eventData)
@@ -30,26 +77,48 @@ namespace Durak
             //has it the correct state?
             var pointerDrag = eventData.pointerDrag;
             if (pointerDrag.GetComponent<CardInteraction>().GetStateType() != typeof(DragState)) return;
+
+            //only an attack can defend
+            if (gameData.PlayerRoleType is not PlayerRoleType.Defender) return;
             
             //can the card be placed?
-            var cardController = pointerDrag.GetComponent<CardController>();
-            if (cardController.IsTrump(trumpType))
+            var secondCardController = pointerDrag.GetComponent<CardController>();
+            if (secondCardController.IsTrump(trumpType))
             {
-                if (cardController.GetCardStrength(trumpType) <= FirstCardController.GetCardStrength(trumpType)) return;
+                if (secondCardController.GetTrumpCardStrength(trumpType) <= FirstCardController.GetTrumpCardStrength(trumpType)) return;
             }
-            else if (cardController.CardType.Type == FirstCardController.CardType.Type)
+            else if (secondCardController.CardType.Type == FirstCardController.CardType.Type)
             {
-                if (cardController.GetCardStrength(trumpType) <= FirstCardController.GetCardStrength(trumpType)) return;
+                if (secondCardController.GetTrumpCardStrength(trumpType) <= FirstCardController.GetTrumpCardStrength(trumpType)) return;
             }
             else
             {
                 return;
             }
             
-            //place
-            SecondCardController = cardController;
-            PlaceCard(SecondCardController, false);
-            StartCoroutine(SecondNetworkShareObject());
+            StartCoroutine(SecondNetworkShareObject(secondCardController));
+        }
+        
+        public void InitializeFirstSlot(NetworkConnection networkConnection, CardController firstCardController)
+        {
+            if (!playerCardsRuntimeDictionary.TryGetValue(networkConnection, out List<Card> cards)) return;
+            
+            FirstCardController = firstCardController;
+            cards.Remove(firstCardController.Card);
+            tableCardsRuntimeSet.Add(firstCardController.Card);
+            
+            OnPlacedCard?.Invoke();
+        }
+
+        public void InitializeSecondSlot(NetworkConnection networkConnection, CardController secondCardController)
+        {
+            if (!playerCardsRuntimeDictionary.TryGetValue(networkConnection, out List<Card> cards)) return;
+            
+            SecondCardController = secondCardController;
+            cards.Remove(secondCardController.Card);
+            tableCardsRuntimeSet.Add(secondCardController.Card);
+            
+            OnPlacedCard?.Invoke();
         }
 
         private void PlaceCard(CardController targetCard, bool isTop)
@@ -70,22 +139,30 @@ namespace Durak
                 new Vector3(-cardRect.sizeDelta.x / 2, cardRect.sizeDelta.y / 2, 0);
         }
         
-        private IEnumerator FirstNetworkShareObject()
+        private IEnumerator FirstNetworkShareObject(CardController firstCardController)
         {
+            PlaceCard(firstCardController, true);
+            
             yield return null;
 
             var localConnection = NetworkManager.Instance.LocalConnection;
-            var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, FirstCardController.Card);
-            NetworkManager.Instance.NetworkShareObject(FirstCardController, x => new FirstPlaceCardEvent(this, x, localConnection, index));
+            var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, firstCardController.Card);
+            NetworkManager.Instance.NetworkShareObject(firstCardController, x => new FirstPlaceCardEvent(this, x, localConnection, index));
+            
+            InitializeFirstSlot(localConnection, firstCardController);
         }
         
-        private IEnumerator SecondNetworkShareObject()
+        private IEnumerator SecondNetworkShareObject(CardController secondCardController)
         {
+            PlaceCard(secondCardController, false);
+            
             yield return null;
 
             var localConnection = NetworkManager.Instance.LocalConnection;
-            var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, SecondCardController.Card);
-            NetworkManager.Instance.NetworkShareObject(SecondCardController, x => new SecondPlaceCardEvent(this, x, localConnection, index));
+            var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, secondCardController.Card);
+            NetworkManager.Instance.NetworkShareObject(secondCardController, x => new SecondPlaceCardEvent(this, x, localConnection, index));
+            
+            InitializeFirstSlot(localConnection, secondCardController);
         }
     }
 
@@ -108,8 +185,8 @@ namespace Durak
         {
             if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
             
-            _cardSlotBehaviour.FirstCardController = _cardController;
             _cardController.SetCardByRuntimeDictionaryIndex(_networkConnection, _cardIndex, typeof(DroppedState));
+            _cardSlotBehaviour.InitializeFirstSlot(_networkConnection, _cardController);
         }
     }
     
@@ -132,8 +209,8 @@ namespace Durak
         {
             if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
             
-            _cardSlotBehaviour.SecondCardController = _cardController;
             _cardController.SetCardByRuntimeDictionaryIndex(_networkConnection, _cardIndex, typeof(DroppedState));
+            _cardSlotBehaviour.InitializeSecondSlot(_networkConnection, _cardController);
         }
     }
 }

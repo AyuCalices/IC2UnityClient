@@ -24,7 +24,8 @@ namespace Durak
 
         private void Awake()
         {
-            _handManager = GetComponentInParent<CardHandManager>();
+            //TODO: exchange find!
+            _handManager = FindObjectOfType<CardHandManager>();
             _stateMachine = new StateMachine();
         }
 
@@ -107,7 +108,6 @@ namespace Durak
         
         public void Enter()
         {
-            _transform.localScale = Vector3.one;
             _cardHandManager.AddCard(_transform.gameObject);
         }
 

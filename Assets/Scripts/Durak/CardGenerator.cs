@@ -1,5 +1,5 @@
+using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace Durak
 {
@@ -15,11 +15,12 @@ namespace Durak
         }
     }
 
+    [Serializable]
     public class Card
     {
-        public CardType CardType { get; }
-        public int CardStrength { get; }
-        public Sprite Sprite { get; }
+        [field: SerializeField] public CardType CardType { get; private set; }
+        [field: SerializeField] public int CardStrength { get; private set; }
+        [field: SerializeField] public Sprite Sprite { get; private set; }
 
         public Card(CardType cardType, int cardStrength, Sprite sprite)
         {

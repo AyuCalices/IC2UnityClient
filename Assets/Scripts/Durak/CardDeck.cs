@@ -14,7 +14,7 @@ namespace Durak
         [SerializeField] private bool useSeed;
         [SerializeField] private int shuffleSeed;
         
-        private readonly List<Card> _drawableCards = new();
+        private List<Card> _drawableCards = new();
         
         public int GenerateSeed() => useSeed ? shuffleSeed : Guid.NewGuid().GetHashCode();
 
@@ -58,6 +58,8 @@ namespace Durak
         
         public List<Card> DrawCards(int drawCount)
         {
+            if (drawCount < 0) return new List<Card>();
+            
             var cards = _drawableCards.GetRange(_drawableCards.Count - 1 - drawCount, drawCount);
             _drawableCards.RemoveRange(_drawableCards.Count - 1 - drawCount, drawCount);
             return cards;

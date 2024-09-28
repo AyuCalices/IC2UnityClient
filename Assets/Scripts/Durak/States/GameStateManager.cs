@@ -72,12 +72,14 @@ namespace Durak.States
     public class StartGameState : IState
     {
         public static event Action OnStartGameCompleted;
-        
+
+        private readonly GameData _gameData;
         private readonly CardDeck _cardDeck;
         private readonly int _shuffleSeed;
 
-        public StartGameState(CardDeck cardDeck, int shuffleSeed)
+        public StartGameState(GameData gameData, CardDeck cardDeck, int shuffleSeed)
         {
+            _gameData = gameData;
             _cardDeck = cardDeck;
             _shuffleSeed = shuffleSeed;
         }
@@ -95,31 +97,61 @@ namespace Durak.States
 
         public void Exit()
         {
+            var lobbyConnections = NetworkManager.Instance.LobbyConnections;
+            _gameData.DefenderLobbyConnectionsIndex = Random.Range(0, lobbyConnections.Count);
         }
     }
+    
+    public enum PlayerRoleType { Defender, FirstAttacker, Attacker }
 
     [Serializable]
     public class TurnState : IState
     {
+        private readonly GameData _gameData;
         private readonly CardSpawner _cardSpawner;
-        //TODO: define for players, if they defend or attack
-        //TODO: define the first attacker
+        private readonly int _nextDefenderJump;
+
         //TODO: add a button for giveup with all -> either destroy cards or give them the defender
         //TODO: implement rotation
 
-        public TurnState(CardSpawner cardSpawner)
+        public TurnState(GameData gameData, CardSpawner cardSpawner, int nextDefenderJump)
         {
+            _gameData = gameData;
             _cardSpawner = cardSpawner;
+            _nextDefenderJump = nextDefenderJump;
         }
         
         public void Enter()
         {
             _cardSpawner.DrawCardsForAll();
-            var randomDefenderIndex = Random.Range(0, NetworkManager.Instance.LobbyConnections.Count);
-            var previousIndex = randomDefenderIndex - 1;
-            var attackerIndex = previousIndex >= 0 ? previousIndex : NetworkManager.Instance.LobbyConnections.Count - 1;
-            var defender = NetworkManager.Instance.LobbyConnections[randomDefenderIndex];
-            var firstAttacker = NetworkManager.Instance.LobbyConnections[attackerIndex];
+            var lobbyConnections = NetworkManager.Instance.LobbyConnections;
+            var localConnection = NetworkManager.Instance.LocalConnection;
+            
+            //define defender
+            for (int i = 0; i < _nextDefenderJump; i++)
+            {
+                _gameData.DefenderLobbyConnectionsIndex = _gameData.DefenderLobbyConnectionsIndex + 1 >= lobbyConnections.Count ? 0 : _gameData.DefenderLobbyConnectionsIndex + 1;
+            }
+            _gameData.DefenderNetworkConnection = lobbyConnections[_gameData.DefenderLobbyConnectionsIndex];
+            
+            //define first attacker
+            int firstAttackerIndex= _gameData.DefenderLobbyConnectionsIndex - 1 < 0 ? lobbyConnections.Count - 1 : _gameData.DefenderLobbyConnectionsIndex - 1;
+            var firstAttackerConnection = lobbyConnections[firstAttackerIndex];
+
+            if (_gameData.DefenderNetworkConnection.Equals(localConnection))
+            {
+                _gameData.PlayerRoleType = PlayerRoleType.Defender;
+            }
+            else if (firstAttackerConnection.Equals(localConnection))
+            {
+                _gameData.PlayerRoleType = PlayerRoleType.FirstAttacker;
+            }
+            else
+            {
+                _gameData.PlayerRoleType = PlayerRoleType.Attacker;
+            }
+            
+            Debug.Log("Player Role: " + _gameData.PlayerRoleType);
         }
 
         public void Execute()

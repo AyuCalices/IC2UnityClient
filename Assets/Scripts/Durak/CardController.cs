@@ -50,7 +50,7 @@ namespace Durak
             return CardType.Type == trumpTypeFocus.TrumpType.Type;
         }
 
-        public int GetCardStrength(TrumpTypeFocus trumpTypeFocus)
+        public int GetTrumpCardStrength(TrumpTypeFocus trumpTypeFocus)
         {
             return trumpTypeFocus.GetCardStrength(_containedCard);
         }

@@ -7,6 +7,11 @@ namespace Durak
     public abstract class RuntimeDictionary<TKey, TValue> : ScriptableObject
     {
         protected readonly Dictionary<TKey, TValue> Items = new();
+        
+        private void OnEnable()
+        {
+            Restore();
+        }
     
         public Dictionary<TKey, TValue> GetItems()
         {

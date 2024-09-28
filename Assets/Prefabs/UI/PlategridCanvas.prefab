@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 7941121832782458775}
   - component: {fileID: 3572880464842185253}
   m_Layer: 5
-  m_Name: PlategridCanvas
+  m_Name: PlateGridCanvas
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -218,6 +218,8 @@ MonoBehaviour:
   serializeFieldSceneGuid: 
   prefabPath: 
   migrateOwnerOnLeaveLobby: 0
+  gameData: {fileID: 11400000, guid: 8eaf3fb2c1bc42f40bef480082669deb, type: 2}
   playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
+  tableCardsRuntimeSet: {fileID: 11400000, guid: 32506f9d4f315a54eb16495ca8b275d9, type: 2}
+  trumpType: {fileID: 11400000, guid: 1b1612c335e8d50408e4969d8f640428, type: 2}
   cardSlotBehaviourPrefab: {fileID: 6605339696945408472, guid: cee7bb62cf0e00b40816d741ad07f348, type: 3}
-  instantiatedCardSlots: []

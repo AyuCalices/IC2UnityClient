@@ -50,7 +50,7 @@ namespace Plugins.EventNetworking.Core
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
         
-        private const BindingFlags DefaultFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+        private const BindingFlags DefaultFlags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
 
         
         //TODO: currently tightly coupled -> in a future version it must be less coupled

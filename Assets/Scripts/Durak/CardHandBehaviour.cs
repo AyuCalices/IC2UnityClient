@@ -19,6 +19,7 @@ namespace Durak
             cardsInHand.Add(newCard.transform as RectTransform);
             newCard.transform.SetParent(transform, true); // Set card parent to the CardHand object
             newCard.transform.rotation = Quaternion.identity;
+            newCard.transform.localScale = Vector3.one;
             UpdateCardPositions();
         }
 

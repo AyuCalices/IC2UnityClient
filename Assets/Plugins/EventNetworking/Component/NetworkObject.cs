@@ -39,6 +39,18 @@ namespace Plugins.EventNetworking.Component
             SetupSceneGuid(true);
         }
 
+        private void OnDestroy()
+        {
+            var networkManager = NetworkManager.Instance;
+            if (networkManager.NetworkObjects.TryGetValue(serializeFieldSceneGuid, out NetworkObject networkObject))
+            {
+                if (networkObject == this)
+                {
+                    networkManager.NetworkObjects.Remove(serializeFieldSceneGuid);
+                }
+            }
+        }
+
         protected virtual void OnValidate()
         {
             if (Application.isPlaying) return;

@@ -6,11 +6,13 @@ namespace Durak.States
 {
     public class StartGameStateController : MonoBehaviour
     {
+        [SerializeField] private GameData gameData;
         [SerializeField] private GameStateManager gameStateManager;
         [SerializeField] private CardDeck cardDeck;
         
         private void Awake()
         {
+            StartGameStateEvent.GameData = gameData;
             gameStateManager.OnStateAuthorityAcquired += InitializeCardDeck;
         }
 
@@ -27,6 +29,8 @@ namespace Durak.States
     
     public readonly struct StartGameStateEvent : INetworkEvent
     {
+        public static GameData GameData { get; set; }
+        
         private readonly GameStateManager _gameStateManager;
         private readonly CardDeck _cardDeck;
         private readonly int _seed;
@@ -40,7 +44,7 @@ namespace Durak.States
 
         public void PerformEvent()
         {
-            _gameStateManager.RequestState(new StartGameState(_cardDeck, _seed));
+            _gameStateManager.RequestState(new StartGameState(GameData, _cardDeck, _seed));
         }
     }
 }
