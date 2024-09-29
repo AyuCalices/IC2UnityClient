@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataTypes.StateMachine;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
 using Plugins.EventNetworking.NetworkEvent;
@@ -8,78 +9,47 @@ using UnityEngine;
 
 namespace Durak.States
 {
-    public class TurnStateController : MonoBehaviour
+    public class TurnStateController : MonoBehaviour, IState
     {
-        public static event Action OnPickupTableCards;
-        public static event Action OnDestroyTableCards;
+        public static event Action OnEnterTurnState;
+        public static event Action OnDefenderWinsTurn;
+        public static event Action OnAttackerWinsTurn;
         
         [SerializeField] private GameData gameData;
-        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
-        [SerializeField] private TableCardsRuntimeSet tableCardsRuntimeSet;
-        [SerializeField] private GameStateManager gameStateManager;
-        [SerializeField] private CardSpawner cardSpawner;
-        [SerializeField] private CardDeck cardDeck;
-        
+        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
+        [SerializeField] private CardHandSpawner cardHandSpawner;
+        [SerializeField] private GameObject defenderButton;
+        [SerializeField] private GameObject attackerButton;
+
+        private GameStateManager _gameStateManager;
         private readonly Dictionary<NetworkConnection, bool> _attackerGiveUpLookup = new();
-    
+        private int _defenderRotationCount;
+
         private void Awake()
         {
-            DefenderGiveUpEvent.OnDefenderGiveUp = OnDefenderGiveUp;
-            AttackerGiveUpEvent.OnAttackerGiveUp = OnAttackerGiveUp;
+            _gameStateManager = GetComponent<GameStateManager>();
             
-            StartGameState.OnStartGameCompleted += EnterTurnState;
-            CardSlotBehaviour.OnCardPlaced += OnCardPlaced;
+            StartGameStateController.OnStartGameCompleted += EnterTurnState;
+            
+            DefenderGiveUpEvent.OnPerformEvent += OnDefenderGiveUp;
+            AttackerGiveUpEvent.OnPerformEvent += OnAttackerGiveUp;
         }
 
         private void OnDestroy()
         {
-            StartGameState.OnStartGameCompleted -= EnterTurnState;
-            CardSlotBehaviour.OnCardPlaced -= OnCardPlaced;
+            StartGameStateController.OnStartGameCompleted -= EnterTurnState;
+            
+            DefenderGiveUpEvent.OnPerformEvent -= OnDefenderGiveUp;
+            AttackerGiveUpEvent.OnPerformEvent -= OnAttackerGiveUp;
         }
 
-        private void OnCardPlaced()
-        {
-            int notCompletedCount = 0;
-            foreach (var (networkConnection, cards) in playerCardsRuntimeDictionary.GetItems())
-            {
-                if (cards.Count == 0 && cardDeck.IsEmpty())
-                {
-                    Debug.LogWarning($"Player with networkConnection {networkConnection} is done!");
-
-                    if (networkConnection.Equals(gameData.DefenderNetworkConnection))
-                    {
-                        OnDefenderTurnWin();
-                    }
-                }
-                else
-                {
-                    notCompletedCount++;
-                }
-            }
-
-            if (notCompletedCount <= 1)
-            {
-                //TODO: put these 4 lines into the end of a turn state
-                OnDestroyTableCards?.Invoke();
-                var cards = tableCardsRuntimeSet.GetItems();
-                gameData.DestroyedCards.AddRange(cards);
-                tableCardsRuntimeSet.Restore();
-                gameStateManager.RequestState(new EndGameState());
-            }
-
-            SetupAttackerGiveUpState();
-        }
-
-        private void EnterTurnState()
-        {
-            gameStateManager.RequestState(new TurnState(gameData, cardSpawner, 0));
-            SetupAttackerGiveUpState();
-        }
+        #region Public Methods
 
         public void DefenderGiveUp()
         {
-            var localConnection = NetworkManager.Instance.LocalConnection;
-            if (!gameData.DefenderNetworkConnection.Equals(localConnection))
+            var localPlayerData = playerDataRuntimeSet.GetLocalPlayerData();
+            
+            if (localPlayerData.RoleType != PlayerRoleType.Defender)
             {
                 Debug.LogWarning("Tried to stop defending as an attacker!");
                 return;
@@ -90,45 +60,142 @@ namespace Durak.States
         
         public void AttackerGiveUp()
         {
-            var localConnection = NetworkManager.Instance.LocalConnection;
-            if (gameData.DefenderNetworkConnection.Equals(localConnection))
+            var localPlayerData = playerDataRuntimeSet.GetLocalPlayerData();
+            
+            if (localPlayerData.RoleType == PlayerRoleType.Defender)
             {
                 Debug.LogWarning("Tried to stop attacking as a defender!");
                 return;
             }
             
-            NetworkManager.Instance.RequestRaiseEventCached(new AttackerGiveUpEvent(localConnection));
+            NetworkManager.Instance.RequestRaiseEventCached(new AttackerGiveUpEvent(localPlayerData.Connection));
         }
 
-        private void OnDefenderGiveUp()
-        {
-            var localConnection = NetworkManager.Instance.LocalConnection;
-            if (gameData.DefenderNetworkConnection.Equals(localConnection))
-            {
-                OnPickupTableCards?.Invoke();
-            }
-            else
-            {
-                OnDestroyTableCards?.Invoke();
-            }
+        #endregion
 
-            if (playerCardsRuntimeDictionary.TryGetValue(gameData.DefenderNetworkConnection, out List<Card> cards))
-            {
-                cards.AddRange(tableCardsRuntimeSet.GetItems());
-                tableCardsRuntimeSet.Restore();
-            }
+        
+        #region State Logic
+
+        public void Enter()
+        {
+            CardSlotBehaviour.OnCardPlaced += UpdateGameIsComplete;
+            CardSlotBehaviour.OnCardPlaced += SetupAttackerGiveUpState;
             
-            gameStateManager.RequestState(new TurnState(gameData, cardSpawner, 2));
+            OnEnterTurnState?.Invoke();
+            
+            InitializeAttackerDefender();
+            Debug.Log("Player Role: " + playerDataRuntimeSet.GetLocalPlayerData().RoleType);
+            UpdateLocalButtonUI();
+            SetupAttackerGiveUpState();
+        }
+
+        public void Execute() { }
+
+        public void Exit()
+        {
+            CardSlotBehaviour.OnCardPlaced -= UpdateGameIsComplete;
+            CardSlotBehaviour.OnCardPlaced -= SetupAttackerGiveUpState;
+            
+            gameData.TableCards.Clear();
+        }
+
+        #endregion
+
+        #region Private Methods
+        
+        private void EnterTurnState()
+        {
+            _defenderRotationCount = 0;
+            _gameStateManager.RequestState(this);
+        }
+
+        private void InitializeAttackerDefender()
+        {
+            var lobbyConnections = NetworkManager.Instance.LobbyConnections;
+            
+            //define defender
+            var defenderConnection = gameData.RotateDefenderIndex(_defenderRotationCount);
+            
+            //define first attacker
+            int firstAttackerIndex= gameData.CurrentDefenderRotationIndex - 1 < 0 ? lobbyConnections.Count - 1 : gameData.CurrentDefenderRotationIndex - 1;
+            var firstAttackerConnection = lobbyConnections[firstAttackerIndex];
+
+            //set roleType
+            foreach (var playerData in playerDataRuntimeSet.GetItems())
+            {
+                if (defenderConnection.Equals(playerData.Connection))
+                {
+                    playerData.RoleType = PlayerRoleType.Defender;
+                }
+                else if (firstAttackerConnection.Equals(playerData.Connection))
+                {
+                    playerData.RoleType = PlayerRoleType.FirstAttacker;
+                }
+                else
+                {
+                    playerData.RoleType = PlayerRoleType.Attacker;
+                }
+            }
         }
 
         private void SetupAttackerGiveUpState()
         {
             _attackerGiveUpLookup.Clear();
-            foreach (var lobbyConnection in NetworkManager.Instance.LobbyConnections)
+            
+            foreach (var playerData in playerDataRuntimeSet.GetItems())
             {
-                if (lobbyConnection.Equals(gameData.DefenderNetworkConnection)) continue;
+                if (playerData.RoleType == PlayerRoleType.Defender) continue;
                 
-                _attackerGiveUpLookup[lobbyConnection] = false;
+                _attackerGiveUpLookup[playerData.Connection] = false;
+            }
+
+            var localPlayerRole = playerDataRuntimeSet.GetLocalPlayerData().RoleType;
+            if (localPlayerRole is PlayerRoleType.Attacker)
+            {
+                attackerButton.SetActive(true);
+            }
+        }
+
+        private void UpdateLocalButtonUI()
+        {
+            var localPlayerRole = playerDataRuntimeSet.GetLocalPlayerData().RoleType;
+            if (localPlayerRole is PlayerRoleType.Defender)
+            {
+                attackerButton.SetActive(false);
+                defenderButton.SetActive(true);
+            }
+            else if (localPlayerRole is PlayerRoleType.Attacker)
+            {
+                attackerButton.SetActive(true);
+                defenderButton.SetActive(false);
+            }
+        }
+        
+        private void UpdateGameIsComplete()
+        {
+            var notCompletedCount = 0;
+            foreach (var playerData in playerDataRuntimeSet.GetItems())
+            {
+                if (playerData.Cards.Count == 0 && gameData.CanDrawCard())
+                {
+                    if (playerData.RoleType is PlayerRoleType.Defender)
+                    {
+                        Debug.LogWarning($"Defender with networkConnection {playerData.Connection} is done!");
+                        OnDefenderTurnWin(new EndGameState());
+                        return;
+                    }
+
+                    Debug.LogWarning($"Attacker with networkConnection {playerData.Connection} is done!");
+                }
+                else
+                {
+                    notCompletedCount++;
+                }
+            }
+
+            if (notCompletedCount <= 1)
+            {
+                _gameStateManager.RequestState(new EndGameState());
             }
         }
         
@@ -138,34 +205,44 @@ namespace Durak.States
             
             if (_attackerGiveUpLookup.All(x => x.Value))
             {
-                OnDefenderTurnWin();
-                SetupAttackerGiveUpState();
+                OnDefenderTurnWin(this);
             }
         }
-
-        private void OnDefenderTurnWin()
+        
+        private void OnDefenderTurnWin(IState completeState)
         {
-            OnDestroyTableCards?.Invoke();
-            var cards = tableCardsRuntimeSet.GetItems();
-            gameData.DestroyedCards.AddRange(cards);
-            tableCardsRuntimeSet.Restore();
-            gameStateManager.RequestState(new TurnState(gameData, cardSpawner, 1));
+            gameData.RemoveTableCards();
+            OnDefenderWinsTurn?.Invoke();
+            
+            _defenderRotationCount = 1;
+            _gameStateManager.RequestState(completeState);
         }
+        
+        private void OnDefenderGiveUp()
+        {
+            gameData.TryAddTableCardsToDefender();
+            OnAttackerWinsTurn?.Invoke();
+
+            _defenderRotationCount = 2;
+            _gameStateManager.RequestState(this);
+        }
+
+        #endregion
     }
 
     public readonly struct DefenderGiveUpEvent : INetworkEvent
     {
-        public static Action OnDefenderGiveUp { get; set; }
+        public static event Action OnPerformEvent;
         
         public void PerformEvent()
         {
-            OnDefenderGiveUp?.Invoke();
+            OnPerformEvent?.Invoke();
         }
     }
     
     public readonly struct AttackerGiveUpEvent : INetworkEvent
     {
-        public static Action<NetworkConnection> OnAttackerGiveUp { get; set; }
+        public static event Action<NetworkConnection> OnPerformEvent;
         
         private readonly NetworkConnection _attacker;
 
@@ -176,7 +253,7 @@ namespace Durak.States
         
         public void PerformEvent()
         {
-            OnAttackerGiveUp?.Invoke(_attacker);
+            OnPerformEvent?.Invoke(_attacker);
         }
     }
 }

@@ -1,6 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Durak.Networking;
+using Durak.UI;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
 using Plugins.EventNetworking.DataTransferObject;
@@ -13,54 +16,55 @@ namespace Durak
 {
     public class LobbyBehaviour : NetworkObject
     {
-        [SerializeField] private int minPlayerCount = 2;
+        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
+        [SerializeField] private GameBalancing gameBalancing;
         [SerializeField] private TMP_InputField inputField;
         [SerializeField] private UnityEvent onClientStartsGame;
+        [SerializeField] private LobbyClientElement lobbyClientElementPrefab;
         
-        private readonly Dictionary<NetworkConnection, (bool isReady, string playerName)> _networkConnections = new();
-        private string _playerName;
-        private bool _isReady;
-        
+        private readonly Dictionary<NetworkConnection, bool> _isReadyLookup = new();
+        private readonly List<LobbyClientElement> _instantiatedLobbyClientElements = new();
+
+        #region Unity Lifecycle
+
         private void Start()
         {
-            UpdateIsReadyEvent.InitializeStatic(this);
-            ShareNameEvent.InitializeStatic(this);
+            UpdateIsReadyEvent.OnPerformEvent += SetIsReady;
+            ShareNameEvent.OnPerformEvent += SetName;
             
             NetworkManager.Instance.ConnectToServer();
         }
+
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            
+            UpdateIsReadyEvent.OnPerformEvent -= SetIsReady;
+            ShareNameEvent.OnPerformEvent -= SetName;
+        }
+
+        #endregion
         
+        public void UpdateIsReadyNetworkEvent(bool isReady)
+        {
+            if (string.IsNullOrEmpty(inputField.text)) return;
+            
+            var networkManager = NetworkManager.Instance;
+            networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, isReady));
+        }
+
+        #region Networking Lifecycle
+
         public override void OnConnected(NetworkConnection ownConnection)
         {
             NetworkManager.Instance.FetchLobby();
         }
 
-        [ContextMenu("Print Dictionary")]
-        public void PrintDictionary()
-        {
-            foreach (var keyValuePair in _networkConnections)
-            {
-                Debug.Log(keyValuePair.Key + " " + keyValuePair.Value.isReady + " " + keyValuePair.Value.playerName);
-            }
-        }
-
-        public override void OnLobbiesFetched(LobbiesData[] lobbiesData)
-        {
-            if (lobbiesData.Any(data => data.name == NetworkManager.Instance.DefaultLobbyName))
-            {
-                NetworkManager.Instance.JoinLobby();
-                return;
-            }
-            
-            NetworkManager.Instance.CreateLobby();
-        }
-
         public override void OnLobbyCreated()
         {
-            var networkManager = NetworkManager.Instance;
-
-            inputField.text = GenerateRandomName(4);
-            _playerName = inputField.text;
-            _networkConnections.TryAdd(networkManager.LocalConnection, (false, _playerName));
+            var networkConnection = NetworkManager.Instance.LocalConnection;
+            AddElement(networkConnection);
+            SetName(NetworkManager.Instance.LocalConnection, inputField.text);
             
             //when creating the lobby, there is no other client -> no event needed
         }
@@ -68,137 +72,118 @@ namespace Durak
         public override void OnLobbyJoined(JoinLobbyClientData joinLobbyClientData)
         {
             var networkManager = NetworkManager.Instance;
-            
-            inputField.text = GenerateRandomName(4);
-            _playerName = inputField.text;
             foreach (var networkConnection in networkManager.LobbyConnections)
             {
-                _networkConnections.TryAdd(networkConnection, (false, _playerName));
+                AddElement(networkConnection);
             }
             
-            networkManager.RequestRaiseEvent(new ShareNameEvent(this, networkManager.LocalConnection, _playerName));
+            SetName(NetworkManager.Instance.LocalConnection, inputField.text);
+            
+            networkManager.RequestRaiseEvent(new ShareNameEvent(networkManager.LocalConnection, inputField.text));
         }
 
         public override void OnClientJoinedLobby(NetworkConnection joinedClient)
         {
-            _networkConnections.TryAdd(joinedClient, (false, string.Empty));
-            var networkManager = NetworkManager.Instance;
+            _isReadyLookup.TryAdd(joinedClient, false);
+            playerDataRuntimeSet.AddItem(new PlayerData(joinedClient));
             
-            if (_isReady)   //new clients only need to be updated, if it is not the default value
+            var networkManager = NetworkManager.Instance;
+            if (_isReadyLookup.TryGetValue(networkManager.LocalConnection, out bool isReady) && isReady)   //new clients only need to be updated, if it is not the default value
             {
-                networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(this, networkManager.LocalConnection, _isReady));
+                networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, true));
             }
             
-            networkManager.RequestRaiseEvent(new ShareNameEvent(this, networkManager.LocalConnection, _playerName));
+            networkManager.RequestRaiseEvent(new ShareNameEvent(networkManager.LocalConnection, playerDataRuntimeSet.GetLocalPlayerData().Name));
         }
 
         public override void OnClientLeftLobby(NetworkConnection disconnectedClient)
         {
-            _networkConnections.Remove(disconnectedClient);
+            _isReadyLookup.Remove(disconnectedClient);
         }
 
-        public void UpdateIsReadyNetworkEvent(bool isReady)
+        #endregion
+
+        private void AddElement(NetworkConnection networkConnection)
         {
-            if (_isReady == isReady) return;
+            _isReadyLookup.TryAdd(networkConnection, false);
+            playerDataRuntimeSet.AddItem(new PlayerData(networkConnection));
             
-            var networkManager = NetworkManager.Instance;
-            _isReady = isReady;
-            networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(this, networkManager.LocalConnection, isReady));
+            var instantiatedElement = Instantiate(lobbyClientElementPrefab, transform);
+            instantiatedElement.NetworkConnection = networkConnection;
+            _instantiatedLobbyClientElements.Add(instantiatedElement);
         }
 
-        public void SetIsReady(NetworkConnection networkConnection, bool isReady)
+        private bool CanStart()
         {
-            if (_networkConnections.TryGetValue(networkConnection, out (bool isReady, string playerName) value) && value.isReady != isReady)
-            {
-                _networkConnections[networkConnection] = (isReady, value.playerName);
-            }
-
-            if (_networkConnections.Count >= minPlayerCount && _networkConnections.All(x => x.Value.isReady))
-            {
-                onClientStartsGame?.Invoke();
-                //TODO: differently
-                gameObject.SetActive(false);
-            }
-        }
-
-        public void SetName(NetworkConnection networkConnection, string playerName)
-        {
-            if (_networkConnections.TryGetValue(networkConnection, out (bool isReady, string playerName) value) && value.playerName != playerName)
-            {
-                _networkConnections[networkConnection] = (value.isReady, playerName);
-            }
+            return _isReadyLookup.Count >= gameBalancing.MinPlayerCount && _isReadyLookup.All(x => x.Value);
         }
         
-        //TODO: custom input
-        private string GenerateRandomName(int n)
+        private void SetIsReady(NetworkConnection networkConnection, bool isReady)
         {
-            // Define the characters allowed in the key
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-            System.Random random = new System.Random();
-            StringBuilder keyBuilder = new StringBuilder();
+            _isReadyLookup[networkConnection] = isReady;
+            
+            _instantiatedLobbyClientElements.Find(x => x.NetworkConnection.Equals(networkConnection))?.UpdateIsReady(isReady);
 
-            // Create a key with n elements
-            for (int i = 0; i < n; i++)
+            if (CanStart())
             {
-                // Append a random character from the allowed characters
-                keyBuilder.Append(chars[random.Next(chars.Length)]);
+                onClientStartsGame?.Invoke();
             }
+        }
 
-            // Return the key as a string
-            return keyBuilder.ToString();
+        private void SetName(NetworkConnection networkConnection, string playerName)
+        {
+            playerDataRuntimeSet.GetPlayerData(networkConnection).Name = playerName;
+            
+            _instantiatedLobbyClientElements.Find(x => x.NetworkConnection.Equals(networkConnection))?.UpdateName(playerName);
+        }
+        
+        [ContextMenu("Print Dictionary")]
+        public void PrintDictionary()
+        {
+            foreach (var keyValuePair in _isReadyLookup)
+            {
+                Debug.Log(keyValuePair.Key + " " + keyValuePair.Value);
+            }
         }
     }
     
     public readonly struct UpdateIsReadyEvent : INetworkEvent
     {
-        private static LobbyBehaviour _lobbyBehaviour;
+        public static event Action<NetworkConnection, bool> OnPerformEvent;
         
         //serialized
         private readonly NetworkConnection _networkConnection;
         private readonly bool _isReady;
 
-        public UpdateIsReadyEvent(LobbyBehaviour lobbyBehaviour, NetworkConnection networkConnection, bool isReady)
+        public UpdateIsReadyEvent(NetworkConnection networkConnection, bool isReady)
         {
-            _lobbyBehaviour = lobbyBehaviour;
             _networkConnection = networkConnection;
             _isReady = isReady;
-        }
-
-        public static void InitializeStatic(LobbyBehaviour lobbyBehaviour)
-        {
-            _lobbyBehaviour = lobbyBehaviour;
         }
         
         public void PerformEvent()
         {
-            _lobbyBehaviour.SetIsReady(_networkConnection, _isReady);
-            Debug.Log(_networkConnection + " " + _isReady);
+            OnPerformEvent?.Invoke(_networkConnection, _isReady);
         }
     }
     
     public readonly struct ShareNameEvent : INetworkEvent
     {
-        private static LobbyBehaviour _lobbyBehaviour;
+        public static event Action<NetworkConnection, string> OnPerformEvent;
         
         //serailized
         private readonly NetworkConnection _networkConnection;
         private readonly string _playerName;
 
-        public ShareNameEvent(LobbyBehaviour lobbyBehaviour, NetworkConnection networkConnection, string playerName)
+        public ShareNameEvent(NetworkConnection networkConnection, string playerName)
         {
-            _lobbyBehaviour = lobbyBehaviour;
             _networkConnection = networkConnection;
             _playerName = playerName;
         }
         
-        public static void InitializeStatic(LobbyBehaviour lobbyBehaviour)
-        {
-            _lobbyBehaviour = lobbyBehaviour;
-        }
-        
         public void PerformEvent()
         {
-            _lobbyBehaviour.SetName(_networkConnection, _playerName);
+            OnPerformEvent?.Invoke(_networkConnection, _playerName);
         }
     }
 }

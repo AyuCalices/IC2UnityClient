@@ -33,6 +33,7 @@ namespace Plugins.EventNetworking.Component
 
         [SerializeField] private PrefabRegistry prefabRegistry;
         [SerializeField] private float keepAliveInterval = 20;
+        [SerializeField] private bool connectOnAwake;
         
         [Header("Development")]
         [SerializeField] private string defaultLobbyName = "lobbyName";
@@ -66,6 +67,11 @@ namespace Plugins.EventNetworking.Component
             base.Awake();
             
             _networkController = new NetworkController(this, NetworkObjects, prefabRegistry, keepAliveInterval);
+
+            if (connectOnAwake)
+            {
+                ConnectToServer();
+            }
         }
         
         private void OnApplicationQuit()
@@ -110,15 +116,15 @@ namespace Plugins.EventNetworking.Component
         }
         
         [ContextMenu(nameof(CreateLobby))]
-        public void CreateLobby()
+        public void CreateLobby(string lobbyName = "", int capacity = 0, string password = "")
         {
-            _networkController.CreateLobby(defaultLobbyName, defaultLobbyCapacity, "password");
+            _networkController.CreateLobby(string.IsNullOrEmpty(lobbyName) ? defaultLobbyName : lobbyName, capacity == 0 ? defaultLobbyCapacity : capacity, password);
         }
         
         [ContextMenu(nameof(JoinLobby))]
-        public void JoinLobby()
+        public void JoinLobby(string lobbyName = "", string password = "")
         {
-            _networkController.JoinLobby(defaultLobbyName, "password");
+            _networkController.JoinLobby(string.IsNullOrEmpty(lobbyName) ? defaultLobbyName : lobbyName, password);
         }
 
         [ContextMenu(nameof(LeaveLobby))]

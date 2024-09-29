@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Durak.States;
 using Plugins.EventNetworking.Component;
@@ -7,12 +8,11 @@ using UnityEngine.EventSystems;
 
 namespace Durak
 {
+    //DONE
     public class PlateSlotBehaviour : NetworkObject, IDropHandler
     {
         [SerializeField] private GameData gameData;
-        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
-        [SerializeField] private TableCardsRuntimeSet tableCardsRuntimeSet;
-        [SerializeField] private TrumpTypeFocus trumpType;
+        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
         [SerializeField] private CardSlotBehaviour cardSlotBehaviourPrefab;
 
         private List<CardSlotBehaviour> _instantiatedCardSlots = new ();
@@ -21,16 +21,16 @@ namespace Durak
         {
             base.Awake();
 
-            PlateSlotInstantiationCompleteEvent.InitializeStatic(this);
-
-            TurnStateController.OnDestroyTableCards += DestroyCardSlots;
-            TurnStateController.OnPickupTableCards += DestroyCardSlots;
+            PlateSlotInstantiationCompleteEvent.OnPerformEvent += AddCardSlotBehaviour;
+            TurnStateController.OnDefenderWinsTurn += DestroyCardSlots;
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
-            TurnStateController.OnDestroyTableCards -= DestroyCardSlots;
-            TurnStateController.OnPickupTableCards += DestroyCardSlots;
+            base.OnDestroy();
+            
+            PlateSlotInstantiationCompleteEvent.OnPerformEvent -= AddCardSlotBehaviour;
+            TurnStateController.OnDefenderWinsTurn -= DestroyCardSlots;
         }
 
         private void DestroyCardSlots()
@@ -43,18 +43,20 @@ namespace Durak
             var pointerDrag = eventData.pointerDrag;
             if (pointerDrag.GetComponent<CardInteraction>().GetStateType() != typeof(DragState)) return;
 
+            var playerData = playerDataRuntimeSet.GetLocalPlayerData();
+            
             //defender can't attack
-            if (gameData.PlayerRoleType is PlayerRoleType.Defender) return;
+            if (playerData.RoleType is PlayerRoleType.Defender) return;
             
             //first attack needs to be done by the attacker
-            if (tableCardsRuntimeSet.GetItems().Count == 0 && gameData.PlayerRoleType is not PlayerRoleType.FirstAttacker) return;
+            if (gameData.TableCards.Count == 0 && playerData.RoleType is not PlayerRoleType.FirstAttacker) return;
             
             //attacks after the fist must match
             var cardController = pointerDrag.GetComponent<CardController>();
-            if (tableCardsRuntimeSet.GetItems().Count > 0 && !tableCardsRuntimeSet.ContainsStrength(cardController.Card.CardStrength)) return;
+            if (gameData.TableCards.Count > 0 && !gameData.TableCardsContainStrength(cardController.Card.CardStrength)) return;
 
             var instantiatedObject = Instantiate(cardSlotBehaviourPrefab, transform);
-            NetworkManager.Instance.NetworkShareRuntimeObject(instantiatedObject, new PlateSlotInstantiationCompleteEvent(this, instantiatedObject));
+            NetworkManager.Instance.NetworkShareRuntimeObject(instantiatedObject, new PlateSlotInstantiationCompleteEvent(instantiatedObject));
             
             instantiatedObject.Initialize(cardController);
         }
@@ -67,25 +69,19 @@ namespace Durak
 
     public readonly struct PlateSlotInstantiationCompleteEvent : INetworkEvent
     {
-        private static PlateSlotBehaviour _plateSlotBehaviour;
+        public static event Action<CardSlotBehaviour> OnPerformEvent;
         
         //serialized
         private readonly CardSlotBehaviour _cardSlotBehaviour;
 
-        public PlateSlotInstantiationCompleteEvent(PlateSlotBehaviour plateSlotBehaviour, CardSlotBehaviour cardSlotBehaviour)
+        public PlateSlotInstantiationCompleteEvent(CardSlotBehaviour cardSlotBehaviour)
         {
-            _plateSlotBehaviour = plateSlotBehaviour;
             _cardSlotBehaviour = cardSlotBehaviour;
-        }
-
-        public static void InitializeStatic(PlateSlotBehaviour plateSlotBehaviour)
-        {
-            _plateSlotBehaviour = plateSlotBehaviour;
         }
         
         public void PerformEvent()
         {
-            _plateSlotBehaviour.AddCardSlotBehaviour(_cardSlotBehaviour);
+            OnPerformEvent?.Invoke(_cardSlotBehaviour);
         }
     }
 }

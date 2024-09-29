@@ -6,9 +6,10 @@ using UnityEngine.UI;
 
 namespace Durak
 {
+    //done
     public class CardController : NetworkObject
     {
-        [SerializeField] private PlayerCardsRuntimeDictionary playerCardsRuntimeDictionary;
+        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
         [SerializeField] private Image image;
 
         private Card _containedCard;
@@ -26,7 +27,7 @@ namespace Durak
         
         public void SetCardByRuntimeDictionaryIndex(NetworkConnection networkConnection, int cardIndex, Type entryStateType)
         {
-            var card = playerCardsRuntimeDictionary.GetCard(networkConnection, cardIndex);
+            var card = playerDataRuntimeSet.GetCard(networkConnection, cardIndex);
             SetCard(card, entryStateType);
         }
 
@@ -45,14 +46,9 @@ namespace Durak
             }
         }
 
-        public bool IsTrump(TrumpTypeFocus trumpTypeFocus)
+        public bool IsTrump(CardType cardType)
         {
-            return CardType.Type == trumpTypeFocus.TrumpType.Type;
-        }
-
-        public int GetTrumpCardStrength(TrumpTypeFocus trumpTypeFocus)
-        {
-            return trumpTypeFocus.GetCardStrength(_containedCard);
+            return CardType.Type == cardType.Type;
         }
     }
 }

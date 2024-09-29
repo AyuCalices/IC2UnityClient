@@ -57,7 +57,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 1
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 0
@@ -151,14 +151,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 03061d58ee596cb45a262d9f1a3e1317, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serializeFieldSceneGuid: 
-  prefabPath: 
-  migrateOwnerOnLeaveLobby: 0
-  playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
-  cardDeck: {fileID: 0}
+  playerDataRuntimeSet: {fileID: 11400000, guid: 57622306af2e3464aac966c4ac712662, type: 2}
+  gameData: {fileID: 11400000, guid: 8eaf3fb2c1bc42f40bef480082669deb, type: 2}
+  gameBalancing: {fileID: 11400000, guid: f0beb7776fab8f54ea1a4ace32dcb6ca, type: 2}
+  gameStateManager: {fileID: 0}
   cardControllerPrefab: {fileID: 2742030220783827068, guid: b391c4a4a54caad40a2dee870b317014, type: 3}
-  handManager: {fileID: 3979198600435795932}
-  targetCardCount: 6
+  debugDrawEnabled: 1
+  debugDrawCount: 1
 --- !u!114 &3979198600435795932
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -171,6 +170,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca1e21917b7668b4aab75e5136687f24, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cardsInHand: []
   cardOverlapPercentage: 0.3
   hoverHeight: 50

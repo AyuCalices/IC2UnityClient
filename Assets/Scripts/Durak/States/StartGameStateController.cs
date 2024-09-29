@@ -1,37 +1,68 @@
+using System;
+using DataTypes.StateMachine;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.NetworkEvent;
 using UnityEngine;
+using Random = UnityEngine.Random;
 
 namespace Durak.States
 {
-    public class StartGameStateController : MonoBehaviour
+    public class StartGameStateController : MonoBehaviour, IState
     {
+        public static event Action OnStartGameCompleted;
+        
         [SerializeField] private GameData gameData;
+        [SerializeField] private GameBalancing gameBalancing;
         [SerializeField] private GameStateManager gameStateManager;
-        [SerializeField] private CardDeck cardDeck;
+        
+        private CardDeckGenerator _cardDeckGenerator;
         
         private void Awake()
         {
-            StartGameStateEvent.InitializeStatic(gameData, gameStateManager, cardDeck);
+            _cardDeckGenerator = new CardDeckGenerator(gameData, gameBalancing);
+            StartGameStateEvent.OnPerformEvent += NetworkedStartGameState;
             gameStateManager.OnStateAuthorityAcquired += InitializeCardDeck;
         }
 
         private void OnDestroy()
         {
+            StartGameStateEvent.OnPerformEvent -= NetworkedStartGameState;
             gameStateManager.OnStateAuthorityAcquired -= InitializeCardDeck;
         }
 
         private void InitializeCardDeck()
         {
-            NetworkManager.Instance.RequestRaiseEventCached(new StartGameStateEvent(cardDeck.GenerateSeed()));
+            int seed = gameBalancing.UseCustomSeed ? gameBalancing.CustomSeed : Guid.NewGuid().GetHashCode();
+            NetworkManager.Instance.RequestRaiseEventCached(new StartGameStateEvent(seed));
+        }
+
+        private void NetworkedStartGameState(int gameSeed)
+        {
+            gameData.Seed = gameSeed;
+            gameStateManager.RequestState(this);
+        }
+
+        public void Enter()
+        {
+            _cardDeckGenerator.InitializeDeck(gameData.Seed);
+            Debug.LogWarning("Seed: " + gameData.Seed);
+            OnStartGameCompleted?.Invoke();
+        }
+
+        public void Execute()
+        {
+        }
+
+        public void Exit()
+        {
+            var lobbyConnections = NetworkManager.Instance.LobbyConnections;
+            gameData.RotateDefenderIndex(Random.Range(0, lobbyConnections.Count));
         }
     }
     
     public readonly struct StartGameStateEvent : INetworkEvent
     {
-        private static GameData _gameData;
-        private static GameStateManager _gameStateManager;
-        private static CardDeck _cardDeck;
+        public static event Action<int> OnPerformEvent;
         
         //serialized
         private readonly int _seed;
@@ -41,16 +72,9 @@ namespace Durak.States
             _seed = seed;
         }
 
-        public static void InitializeStatic(GameData gameData, GameStateManager gameStateManager, CardDeck cardDeck)
-        {
-            _gameData = gameData;
-            _gameStateManager = gameStateManager;
-            _cardDeck = cardDeck;
-        }
-
         public void PerformEvent()
         {
-            _gameStateManager.RequestState(new StartGameState(_gameData, _cardDeck, _seed));
+            OnPerformEvent?.Invoke(_seed);
         }
     }
 }

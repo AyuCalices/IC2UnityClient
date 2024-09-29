@@ -6,17 +6,17 @@ namespace Durak
 {
     public class CardHandManager : MonoBehaviour
     {
-        [SerializeField] private List<RectTransform> cardsInHand = new(); // List of cards in hand
-        [SerializeField][Range(0f, 1f)] private float cardOverlapPercentage = 0.3f; // How much each card should overlap
-        [SerializeField] private float hoverHeight = 50f; // The height offset for hovering cards
+        [SerializeField][Range(0f, 1f)] private float cardOverlapPercentage = 0.3f;
+        [SerializeField] private float hoverHeight = 50f;
 
         private readonly List<Vector3> _cardAnchoredBasePosition = new();
+        private readonly List<RectTransform> _cardsInHand = new();
 
         public bool CanHover { get; set; } = true;
         
         public void AddCard(GameObject newCard)
         {
-            cardsInHand.Add(newCard.transform as RectTransform);
+            _cardsInHand.Add(newCard.transform as RectTransform);
             newCard.transform.SetParent(transform, true); // Set card parent to the CardHand object
             newCard.transform.rotation = Quaternion.identity;
             newCard.transform.localScale = Vector3.one;
@@ -25,7 +25,7 @@ namespace Durak
 
         public void RemoveCard(GameObject oldCard)
         {
-            cardsInHand.Remove(oldCard.transform as RectTransform);
+            _cardsInHand.Remove(oldCard.transform as RectTransform);
             oldCard.transform.SetParent(null);
             UpdateCardPositions();
         }
@@ -34,15 +34,15 @@ namespace Durak
         {
             _cardAnchoredBasePosition.Clear();
 
-            if (cardsInHand.Count == 0) return;
+            if (_cardsInHand.Count == 0) return;
             
-            float cardWidth = cardsInHand[0].rect.width;
-            float totalWidth = (cardsInHand.Count - 1) * (cardWidth - (cardWidth * cardOverlapPercentage));
+            float cardWidth = _cardsInHand[0].rect.width;
+            float totalWidth = (_cardsInHand.Count - 1) * (cardWidth - (cardWidth * cardOverlapPercentage));
             float startX = -totalWidth / 2;
 
-            for (int i = 0; i < cardsInHand.Count; i++)
+            for (int i = 0; i < _cardsInHand.Count; i++)
             {
-                RectTransform cardRect = cardsInHand[i];
+                RectTransform cardRect = _cardsInHand[i];
                 float posX = startX + i * (cardWidth - (cardWidth * cardOverlapPercentage));
                 cardRect.anchoredPosition = new Vector2(posX, 0);
                 _cardAnchoredBasePosition.Add(new Vector2(posX, 0));
@@ -56,28 +56,28 @@ namespace Durak
             //TODO: this always must be calculated from base positions of the card
             float cardWidth = ((RectTransform)hoverCard.transform).rect.width;
 
-            for (int i = 0; i < cardsInHand.Count; i++)
+            for (int i = 0; i < _cardsInHand.Count; i++)
             {
-                if (cardsInHand[i].gameObject == hoverCard)
+                if (_cardsInHand[i].gameObject == hoverCard)
                 {
-                    cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x, hoverHeight), 0.2f);
+                    _cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x, hoverHeight), 0.2f);
                 }
-                else if (i < cardsInHand.IndexOf(cardsInHand[i]))
+                else if (i < _cardsInHand.IndexOf(_cardsInHand[i]))
                 {
-                    cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x - (cardWidth * cardOverlapPercentage), 0), 0.2f);
+                    _cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x - (cardWidth * cardOverlapPercentage), 0), 0.2f);
                 }
                 else
                 {
-                    cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x + (cardWidth * cardOverlapPercentage), 0), 0.2f);
+                    _cardsInHand[i].DOAnchorPos(new Vector2(_cardAnchoredBasePosition[i].x + (cardWidth * cardOverlapPercentage), 0), 0.2f);
                 }
             }
         }
 
         public void OnCardHoverEnd()
         {
-            for (int i = 0; i < cardsInHand.Count; i++)
+            for (int i = 0; i < _cardsInHand.Count; i++)
             {
-                cardsInHand[i].DOAnchorPos(_cardAnchoredBasePosition[i], 0.2f);
+                _cardsInHand[i].DOAnchorPos(_cardAnchoredBasePosition[i], 0.2f);
             }
         }
     }

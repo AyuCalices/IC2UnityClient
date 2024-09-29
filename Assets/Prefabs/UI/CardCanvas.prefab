@@ -161,7 +161,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!114 &7240273736839892058
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -194,7 +194,7 @@ MonoBehaviour:
   serializeFieldSceneGuid: 
   prefabPath: Assets/Prefabs/UI/CardCanvas.prefab
   migrateOwnerOnLeaveLobby: 0
-  playerCardsRuntimeDictionary: {fileID: 11400000, guid: 6412bf1b2128cfd46a550da9d1fc54d6, type: 2}
+  playerDataRuntimeSet: {fileID: 11400000, guid: 57622306af2e3464aac966c4ac712662, type: 2}
   image: {fileID: 4449615995562394446}
 --- !u!114 &8949317144865163779
 MonoBehaviour:

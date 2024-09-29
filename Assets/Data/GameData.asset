@@ -12,3 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e4e5073c2c459c74ab88e538b2f5fe7c, type: 3}
   m_Name: GameData
   m_EditorClassIdentifier: 
+  playerDataRuntimeSet: {fileID: 11400000, guid: 57622306af2e3464aac966c4ac712662, type: 2}
+  <TableCards>k__BackingField: []
+  <GameRemovedCards>k__BackingField: []
+  <CurrentDefenderRotationIndex>k__BackingField: 0

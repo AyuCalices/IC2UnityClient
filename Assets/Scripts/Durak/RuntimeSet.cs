@@ -1,50 +1,41 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
 namespace Durak
 {
-    public class RuntimeSet<T> : ScriptableObject
+    public abstract class RuntimeSet<T> : ScriptableObject
     {
-        [SerializeField] protected List<T> items = new();
+        [field: SerializeField] protected List<T> items = new();
+
+        public event Action<T> OnItemAdded;
+        public event Action<T> OnItemRemoved;
+        public event Action OnItemsCleared;
+
+        public List<T> GetItems() => items;
+
+        public void AddItem(T item)
+        {
+            if (!items.Contains(item))
+            {
+                items.Add(item);
+                OnItemAdded?.Invoke(item);
+            }
+        }
+
+        public void RemoveItem(T item)
+        {
+            if (items.Contains(item))
+            {
+                OnItemRemoved?.Invoke(item);
+                items.Remove(item);
+            }
+        }
         
         private void OnEnable()
         {
-            Restore();
-        }
-    
-        public List<T> GetItems()
-        {
-            return items;
-        }
-
-        public void Add(T value)
-        {
-            if (!items.Contains(value))
-            {
-                items.Add(value);
-                OnAfterAdd(value);
-            }
-        }
-        
-        protected virtual void OnAfterAdd(T value) {}
-
-        public void Remove(T value)
-        {
-            if (items.Contains(value))
-            {
-                OnBeforeRemove(value);
-                items.Remove(value);
-            }
-        }
-        
-        protected virtual void OnBeforeRemove(T value) {}
-
-        public virtual void Restore()
-        {
-            OnBeforeRestore();
             items.Clear();
+            OnItemsCleared?.Invoke();
         }
-        
-        protected virtual void OnBeforeRestore() {}
     }
 }
