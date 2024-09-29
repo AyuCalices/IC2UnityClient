@@ -23,6 +23,9 @@ namespace Durak
         
         private void Start()
         {
+            UpdateIsReadyEvent.InitializeStatic(this);
+            ShareNameEvent.InitializeStatic(this);
+            
             NetworkManager.Instance.ConnectToServer();
         }
         
@@ -148,7 +151,9 @@ namespace Durak
     
     public readonly struct UpdateIsReadyEvent : INetworkEvent
     {
-        private readonly LobbyBehaviour _lobbyBehaviour;
+        private static LobbyBehaviour _lobbyBehaviour;
+        
+        //serialized
         private readonly NetworkConnection _networkConnection;
         private readonly bool _isReady;
 
@@ -158,16 +163,24 @@ namespace Durak
             _networkConnection = networkConnection;
             _isReady = isReady;
         }
+
+        public static void InitializeStatic(LobbyBehaviour lobbyBehaviour)
+        {
+            _lobbyBehaviour = lobbyBehaviour;
+        }
         
         public void PerformEvent()
         {
             _lobbyBehaviour.SetIsReady(_networkConnection, _isReady);
+            Debug.Log(_networkConnection + " " + _isReady);
         }
     }
     
     public readonly struct ShareNameEvent : INetworkEvent
     {
-        private readonly LobbyBehaviour _lobbyBehaviour;
+        private static LobbyBehaviour _lobbyBehaviour;
+        
+        //serailized
         private readonly NetworkConnection _networkConnection;
         private readonly string _playerName;
 
@@ -178,9 +191,13 @@ namespace Durak
             _playerName = playerName;
         }
         
+        public static void InitializeStatic(LobbyBehaviour lobbyBehaviour)
+        {
+            _lobbyBehaviour = lobbyBehaviour;
+        }
+        
         public void PerformEvent()
         {
-            Debug.Log(_networkConnection + " " + _playerName);
             _lobbyBehaviour.SetName(_networkConnection, _playerName);
         }
     }

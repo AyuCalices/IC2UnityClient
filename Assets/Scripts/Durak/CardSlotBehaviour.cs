@@ -144,10 +144,10 @@ namespace Durak
             PlaceCard(firstCardController, true);
             
             yield return null;
-
+            
             var localConnection = NetworkManager.Instance.LocalConnection;
             var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, firstCardController.Card);
-            NetworkManager.Instance.NetworkShareObject(firstCardController, x => new FirstPlaceCardEvent(this, x, localConnection, index));
+            NetworkManager.Instance.NetworkShareRuntimeObject(firstCardController, new FirstPlaceCardEvent(this, firstCardController, localConnection, index));
             
             InitializeFirstSlot(localConnection, firstCardController);
         }
@@ -160,7 +160,7 @@ namespace Durak
 
             var localConnection = NetworkManager.Instance.LocalConnection;
             var index = playerCardsRuntimeDictionary.FindCardIndex(localConnection, secondCardController.Card);
-            NetworkManager.Instance.NetworkShareObject(secondCardController, x => new SecondPlaceCardEvent(this, x, localConnection, index));
+            NetworkManager.Instance.NetworkShareRuntimeObject(secondCardController, new SecondPlaceCardEvent(this, secondCardController, localConnection, index));
             
             InitializeFirstSlot(localConnection, secondCardController);
         }

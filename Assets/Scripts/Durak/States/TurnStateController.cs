@@ -85,7 +85,7 @@ namespace Durak.States
                 return;
             }
             
-            NetworkManager.Instance.RequestRaiseEvent(new DefenderGiveUpEvent(), true);
+            NetworkManager.Instance.RequestRaiseEventCached(new DefenderGiveUpEvent());
         }
         
         public void AttackerGiveUp()
@@ -97,7 +97,7 @@ namespace Durak.States
                 return;
             }
             
-            NetworkManager.Instance.RequestRaiseEvent(new AttackerGiveUpEvent(localConnection), true);
+            NetworkManager.Instance.RequestRaiseEventCached(new AttackerGiveUpEvent(localConnection));
         }
 
         private void OnDefenderGiveUp()
@@ -165,8 +165,9 @@ namespace Durak.States
     
     public readonly struct AttackerGiveUpEvent : INetworkEvent
     {
-        private readonly NetworkConnection _attacker;
         public static Action<NetworkConnection> OnAttackerGiveUp { get; set; }
+        
+        private readonly NetworkConnection _attacker;
 
         public AttackerGiveUpEvent(NetworkConnection attacker)
         {

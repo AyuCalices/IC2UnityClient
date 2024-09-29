@@ -106,10 +106,14 @@ namespace Plugins.EventNetworking.Core
             }
         }
         
-        public void RequestRaiseEvent<T>(T networkEvent, bool cacheEvent = false) where T : INetworkEvent
+        public void RequestRaiseEvent(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
         {
-            var serializedEvent = SerializeNetworkEvent(networkEvent, cacheEvent ? CacheEventRequest : EventRequest);
-            SendMessageToServer(serializedEvent);
+            RequestRaiseEvent(EventRequest, networkEvent, stackingNetworkEvents);
+        }
+        
+        public void RequestRaiseEventCache(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
+        {
+            RequestRaiseEvent(CacheEventRequest, networkEvent, stackingNetworkEvents);
         }
         
         public void FetchLobby()
@@ -160,6 +164,23 @@ namespace Plugins.EventNetworking.Core
         #endregion
 
         #region Private Methods
+        
+        private void RequestRaiseEvent(string cacheEvent, INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
+        {
+            string serializedEvent;
+            
+            if (stackingNetworkEvents.Length > 0)
+            {
+                var networkEventGroup = new NetworkEventGroup(networkEvent, stackingNetworkEvents);
+                serializedEvent = SerializeNetworkEvent(networkEventGroup, cacheEvent);
+            }
+            else
+            {
+                serializedEvent = SerializeNetworkEvent(networkEvent, cacheEvent);
+            }
+            
+            SendMessageToServer(serializedEvent);
+        }
         
         private async void SendMessageToServer(string message)
         {
@@ -277,8 +298,21 @@ namespace Plugins.EventNetworking.Core
                 Debug.LogError($"WebSocket error during message reception: {ex.Message}");
             }
         }
+        
+        private string SerializeNetworkEvent(INetworkEvent networkEvent, string eventType)
+        {
+            var rpcRequest = CreateRPCRequestData(networkEvent, eventType);
 
-        private RPCRequestData CreateRPCRequestData<T>(T networkEvent, string eventType) where T : INetworkEvent
+            var message = new
+            {
+                type = eventType,
+                data = rpcRequest
+            };
+            
+            return JsonConvert.SerializeObject(message);
+        }
+        
+        private RPCRequestData CreateRPCRequestData(INetworkEvent networkEvent, string eventType)
         {
             var fieldInfos = networkEvent.GetType().GetFields(DefaultFlags);
             var propertyInfos = networkEvent.GetType().GetProperties(DefaultFlags);
@@ -302,19 +336,6 @@ namespace Plugins.EventNetworking.Core
                 lockstepType = networkEvent.GetType().AssemblyQualifiedName,
                 Data = jObject
             };
-        }
-        
-        private string SerializeNetworkEvent<T>(T networkEvent, string eventType) where T : INetworkEvent
-        {
-            var rpcRequest = CreateRPCRequestData(networkEvent, eventType);
-
-            var message = new
-            {
-                type = eventType,
-                data = rpcRequest
-            };
-            
-            return JsonConvert.SerializeObject(message);
         }
 
         private object ConvertToSerializable(object obj, string eventType)
@@ -434,17 +455,22 @@ namespace Plugins.EventNetworking.Core
         }
 
         #endregion
-    }
-    
-    public readonly struct NetworkEventGroup : INetworkEvent
-    {
-        [UsedImplicitly] private readonly INetworkEvent[] _networkEvents;
-
-        public NetworkEventGroup(params INetworkEvent[] networkEvents)
-        {
-            _networkEvents = networkEvents;
-        }
         
-        public void PerformEvent() { }
+        private readonly struct NetworkEventGroup : INetworkEvent
+        {
+            [UsedImplicitly] private readonly INetworkEvent[] _networkEvents;
+        
+            public NetworkEventGroup(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
+            {
+                _networkEvents = new INetworkEvent[stackingNetworkEvents.Length + 1];
+                _networkEvents[0] = networkEvent;
+                for (var i = 0; i < stackingNetworkEvents.Length; i++)
+                {
+                    _networkEvents[i + 1] = stackingNetworkEvents[i];
+                }
+            }
+        
+            public void PerformEvent() { }
+        }
     }
 }

@@ -21,6 +21,8 @@ namespace Durak
         {
             base.Awake();
 
+            PlateSlotInstantiationCompleteEvent.InitializeStatic(this);
+
             TurnStateController.OnDestroyTableCards += DestroyCardSlots;
             TurnStateController.OnPickupTableCards += DestroyCardSlots;
         }
@@ -51,10 +53,10 @@ namespace Durak
             var cardController = pointerDrag.GetComponent<CardController>();
             if (tableCardsRuntimeSet.GetItems().Count > 0 && !tableCardsRuntimeSet.ContainsStrength(cardController.Card.CardStrength)) return;
 
-            var cardSlotBehaviour = NetworkManager.Instance.NetworkInstantiateObject(cardSlotBehaviourPrefab, this, 
-                cardSlotBehaviour => new PlateSlotInstantiationCompleteEvent(this, cardSlotBehaviour));
+            var instantiatedObject = Instantiate(cardSlotBehaviourPrefab, transform);
+            NetworkManager.Instance.NetworkShareRuntimeObject(instantiatedObject, new PlateSlotInstantiationCompleteEvent(this, instantiatedObject));
             
-            cardSlotBehaviour.Initialize(cardController);
+            instantiatedObject.Initialize(cardController);
         }
 
         public void AddCardSlotBehaviour(CardSlotBehaviour cardSlotBehaviour)
@@ -65,13 +67,20 @@ namespace Durak
 
     public readonly struct PlateSlotInstantiationCompleteEvent : INetworkEvent
     {
-        private readonly PlateSlotBehaviour _plateSlotBehaviour;
+        private static PlateSlotBehaviour _plateSlotBehaviour;
+        
+        //serialized
         private readonly CardSlotBehaviour _cardSlotBehaviour;
 
         public PlateSlotInstantiationCompleteEvent(PlateSlotBehaviour plateSlotBehaviour, CardSlotBehaviour cardSlotBehaviour)
         {
             _plateSlotBehaviour = plateSlotBehaviour;
             _cardSlotBehaviour = cardSlotBehaviour;
+        }
+
+        public static void InitializeStatic(PlateSlotBehaviour plateSlotBehaviour)
+        {
+            _plateSlotBehaviour = plateSlotBehaviour;
         }
         
         public void PerformEvent()

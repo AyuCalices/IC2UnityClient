@@ -10,8 +10,8 @@ namespace Plugins.EventNetworking.NetworkEvent
         private readonly string _originID;
         private readonly string _newID;
         private readonly NetworkConnection _networkConnection;
-        private readonly Vector3 _position;
-        private readonly Quaternion _rotation;
+        private readonly (float x, float y, float z) _position;
+        private readonly (float x, float y, float z, float w) _rotation;
 
         public InstantiatePosRotEvent(NetworkObject originObj, string newID, NetworkConnection networkConnection, 
             Vector3 position, Quaternion rotation)
@@ -20,8 +20,8 @@ namespace Plugins.EventNetworking.NetworkEvent
             _originID = originObj.SceneGuid;
             _newID = newID;
             _networkConnection = networkConnection;
-            _position = position;
-            _rotation = rotation;
+            _position = (position.x, position.y, position.z);
+            _rotation = (rotation.x, rotation.y, rotation.z, rotation.w);
         }
 
         public void PerformEvent()
@@ -29,7 +29,9 @@ namespace Plugins.EventNetworking.NetworkEvent
             if (_networkConnection.Equals(NetworkManager.Instance.LocalConnection)) return;
         
             _originObj.SetSceneGuidGroup(_newID);
-            var newNetworkObj = Object.Instantiate(_originObj, _position, _rotation);
+            var position = new Vector3(_position.x, _position.y, _position.z);
+            var rotation = new Quaternion(_rotation.x, _rotation.y, _rotation.z, _rotation.w);
+            var newNetworkObj = Object.Instantiate(_originObj, position, rotation);
             _originObj.SetSceneGuidGroup(_originID);
         
             newNetworkObj.OnNetworkInstantiate();

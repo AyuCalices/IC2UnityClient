@@ -131,113 +131,99 @@ namespace Plugins.EventNetworking.Component
 
         #region Public Instantiation
         
-        public void RequestRaiseEvent<T>(T networkEvent, bool cacheEvent = false) where T : INetworkEvent
+        public void RequestRaiseEvent(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
         {
-            _networkController.RequestRaiseEvent(networkEvent, cacheEvent);
-        }
-
-        private TNetworkObject HandleNetworkInstantiation<TNetworkObject, TNetworkEvent>(TNetworkObject newNetworkObject, TNetworkEvent instantiationEvent, 
-            Func<TNetworkObject, INetworkEvent> onCompleteEvent = null) where TNetworkEvent : INetworkEvent where TNetworkObject : NetworkObject
-        {
-            // Handle the event
-            if (onCompleteEvent != null)
-            {
-                var networkEventGroup = new NetworkEventGroup(instantiationEvent, onCompleteEvent.Invoke(newNetworkObject));
-                RequestRaiseEvent(networkEventGroup, true);
-            }
-            else
-            {
-                RequestRaiseEvent(instantiationEvent, true);
-            }
-
-            newNetworkObject.OnNetworkInstantiate();
-            return newNetworkObject;
+            _networkController.RequestRaiseEvent(networkEvent, stackingNetworkEvents);
         }
         
-        public void NetworkShareObject<T>(T networkObject, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        public void RequestRaiseEventCached(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
         {
+            _networkController.RequestRaiseEventCache(networkEvent, stackingNetworkEvents);
+        }
+        
+        public void NetworkShareRuntimeObject<T>(T networkObject, params INetworkEvent[] onInstantiateCompleteNetworkEvents) where T : NetworkObject
+        {
+            if (string.IsNullOrEmpty(networkObject.SceneGuid))
+            {
+                Debug.LogError("Sharing a prefab is not allowed!");
+                return;
+            }
+            
             NetworkObject parentNetworkObject = null;
             if (networkObject.transform.parent != null && !networkObject.transform.parent.TryGetComponent(out parentNetworkObject))
             {
                 Debug.LogWarning($"Couldn't identify the parent for object {networkObject.name}!");
             }
             
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab)) return;
-            
-            var instantiationEvent = new InstantiatePosRotParentEvent(foundPrefab, networkObject.SceneGuid, 
-                LocalConnection, networkObject.transform.position, networkObject.transform.rotation, parentNetworkObject);
-            HandleNetworkInstantiation(networkObject, instantiationEvent, onCompleteEvent);
-        }
-
-        public T NetworkInstantiateObject<T>(T networkObject, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
-        {
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab))
+            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out var prefabObject))
             {
-                Debug.LogWarning($"The prefab for object {networkObject.gameObject.name} could not be found!");
-                return null;
+                Debug.LogError($"The prefab for object {networkObject.gameObject.name} could not be found!");
+                return;
+            }
+
+            INetworkEvent instantiationEvent;
+            if (parentNetworkObject == null)
+            {
+                instantiationEvent = new InstantiatePosRotEvent(prefabObject, networkObject.SceneGuid, 
+                    LocalConnection, networkObject.transform.position, networkObject.transform.rotation);
+            }
+            else
+            {
+                instantiationEvent = new InstantiatePosRotParentEvent(prefabObject, networkObject.SceneGuid, 
+                    LocalConnection, networkObject.transform.position, networkObject.transform.rotation, parentNetworkObject);
             }
             
-            var newNetworkObject = Instantiate(foundPrefab.GetComponent<T>());
+            HandleNetworkInstantiation(networkObject, instantiationEvent, onInstantiateCompleteNetworkEvents);
+        }
+
+        public T NetworkInstantiatePrefab<T>(T networkObject) where T : NetworkObject
+        {
+            var prefabObject = ValidateAndGetPrefab(networkObject);
+            if (prefabObject == null) return null;
+            
+            var newNetworkObject = Instantiate(prefabObject.GetComponent<T>());
             var instantiationEvent = new InstantiateEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection);
-            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent);
         }
         
-        public T NetworkInstantiateObject<T>(T networkObject, Vector3 position, Quaternion rotation, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        public T NetworkInstantiatePrefab<T>(T networkObject, Vector3 position, Quaternion rotation) where T : NetworkObject
         {
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab))
-            {
-                Debug.LogWarning($"The prefab for object {networkObject.gameObject.name} could not be found!");
-                return null;
-            }
+            var prefabObject = ValidateAndGetPrefab(networkObject);
+            if (prefabObject == null) return null;
             
-            var newNetworkObject = Instantiate(foundPrefab.GetComponent<T>(), position, rotation);
+            var newNetworkObject = Instantiate(prefabObject.GetComponent<T>(), position, rotation);
             var instantiationEvent = new InstantiatePosRotEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, position, rotation);
-            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent);
         }
 
-        public T NetworkInstantiateObject<T>(T networkObject, Vector3 position, Quaternion rotation, NetworkObject parent, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        public T NetworkInstantiatePrefab<T>(T networkObject, Vector3 position, Quaternion rotation, NetworkObject parent) where T : NetworkObject
         {
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab))
-            {
-                Debug.LogWarning($"The prefab for object {networkObject.gameObject.name} could not be found!");
-                return null;
-            }
+            var prefabObject = ValidateAndGetPrefab(networkObject);
+            if (prefabObject == null) return null;
             
-            var newNetworkObject = Instantiate(foundPrefab.GetComponent<T>(), position, rotation, parent.transform);
+            var newNetworkObject = Instantiate(prefabObject.GetComponent<T>(), position, rotation, parent.transform);
             var instantiationEvent = new InstantiatePosRotParentEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, position, rotation, parent);
-            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent);
         }
 
-        public T NetworkInstantiateObject<T>(T networkObject, NetworkObject parent, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        public T NetworkInstantiatePrefab<T>(T networkObject, NetworkObject parent) where T : NetworkObject
         {
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab))
-            {
-                Debug.LogWarning($"The prefab for object {networkObject.gameObject.name} could not be found!");
-                return null;
-            }
+            var prefabObject = ValidateAndGetPrefab(networkObject);
+            if (prefabObject == null) return null;
             
-            var newNetworkObject = Instantiate(foundPrefab.GetComponent<T>(), parent.transform);
+            var newNetworkObject = Instantiate(prefabObject.GetComponent<T>(), parent.transform);
             var instantiationEvent = new InstantiateParentEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, parent);
-            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent);
         }
 
-        public T NetworkInstantiateObject<T>(T networkObject, NetworkObject parent, bool worldPositionStays, 
-            Func<T, INetworkEvent> onCompleteEvent = null) where T : NetworkObject
+        public T NetworkInstantiatePrefab<T>(T networkObject, NetworkObject parent, bool worldPositionStays) where T : NetworkObject
         {
-            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out NetworkObject foundPrefab))
-            {
-                Debug.LogWarning($"The prefab for object {networkObject.gameObject.name} could not be found!");
-                return null;
-            }
+            var prefabObject = ValidateAndGetPrefab(networkObject);
+            if (prefabObject == null) return null;
             
-            var newNetworkObject = Instantiate(foundPrefab.GetComponent<T>(), parent.transform, worldPositionStays);
+            var newNetworkObject = Instantiate(prefabObject.GetComponent<T>(), parent.transform, worldPositionStays);
             var instantiationEvent = new InstantiateParentStaysEvent(networkObject, newNetworkObject.SceneGuid, LocalConnection, parent, worldPositionStays);
-            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent, onCompleteEvent);
+            return HandleNetworkInstantiation(newNetworkObject, instantiationEvent);
         }
         
         public void NetworkDestroy(NetworkObject networkObject)
@@ -249,8 +235,35 @@ namespace Plugins.EventNetworking.Component
                 var instantiationEvent = new DestroyEvent(networkObject);
                 networkObject.OnNetworkDestroy();
                 Destroy(networkObject.gameObject);
-                RequestRaiseEvent(instantiationEvent, true);
+                RequestRaiseEventCached(instantiationEvent);
             }
+        }
+
+        #endregion
+
+        #region Private Instatiation
+        
+        private NetworkObject ValidateAndGetPrefab<T>(T networkObject) where T : NetworkObject
+        {
+            if (!string.IsNullOrEmpty(networkObject.SceneGuid))
+            {
+                return networkObject;
+            }
+            
+            if (!prefabRegistry.TryGetPrefab(networkObject.PrefabGuid, out var prefabObject))
+            {
+                Debug.LogError($"The prefab for object {networkObject.gameObject.name} could not be found!");
+                return null;
+            }
+            return prefabObject;
+        }
+        
+        private TNetworkObject HandleNetworkInstantiation<TNetworkObject>(TNetworkObject newNetworkObject, INetworkEvent instantiationEvent, 
+            params INetworkEvent[] networkEvents) where TNetworkObject : NetworkObject
+        {
+            RequestRaiseEventCached(instantiationEvent, networkEvents);
+            newNetworkObject.OnNetworkInstantiate();
+            return newNetworkObject;
         }
 
         #endregion

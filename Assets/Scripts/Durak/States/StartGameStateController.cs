@@ -12,7 +12,7 @@ namespace Durak.States
         
         private void Awake()
         {
-            StartGameStateEvent.GameData = gameData;
+            StartGameStateEvent.InitializeStatic(gameData, gameStateManager, cardDeck);
             gameStateManager.OnStateAuthorityAcquired += InitializeCardDeck;
         }
 
@@ -23,28 +23,34 @@ namespace Durak.States
 
         private void InitializeCardDeck()
         {
-            NetworkManager.Instance.RequestRaiseEvent(new StartGameStateEvent(gameStateManager, cardDeck, cardDeck.GenerateSeed()), true);
+            NetworkManager.Instance.RequestRaiseEventCached(new StartGameStateEvent(cardDeck.GenerateSeed()));
         }
     }
     
     public readonly struct StartGameStateEvent : INetworkEvent
     {
-        public static GameData GameData { get; set; }
+        private static GameData _gameData;
+        private static GameStateManager _gameStateManager;
+        private static CardDeck _cardDeck;
         
-        private readonly GameStateManager _gameStateManager;
-        private readonly CardDeck _cardDeck;
+        //serialized
         private readonly int _seed;
 
-        public StartGameStateEvent(GameStateManager gameStateManager, CardDeck cardDeck, int seed)
+        public StartGameStateEvent(int seed)
         {
+            _seed = seed;
+        }
+
+        public static void InitializeStatic(GameData gameData, GameStateManager gameStateManager, CardDeck cardDeck)
+        {
+            _gameData = gameData;
             _gameStateManager = gameStateManager;
             _cardDeck = cardDeck;
-            _seed = seed;
         }
 
         public void PerformEvent()
         {
-            _gameStateManager.RequestState(new StartGameState(GameData, _cardDeck, _seed));
+            _gameStateManager.RequestState(new StartGameState(_gameData, _cardDeck, _seed));
         }
     }
 }

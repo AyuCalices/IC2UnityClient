@@ -118,6 +118,9 @@ namespace Durak.States
             _gameData = gameData;
             _cardSpawner = cardSpawner;
             _nextDefenderJump = nextDefenderJump;
+
+            //TODO: place somewhere else
+            ForceDrawCardEvent.InitializeStatic(_cardSpawner);
         }
         
         public void Enter()
@@ -157,7 +160,7 @@ namespace Durak.States
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
-                NetworkManager.Instance.RequestRaiseEvent(new ForceDrawCardEvent(_cardSpawner, NetworkManager.Instance.LocalConnection), true);
+                NetworkManager.Instance.RequestRaiseEventCached(new ForceDrawCardEvent(NetworkManager.Instance.LocalConnection));
             }
         }
 
@@ -185,13 +188,19 @@ namespace Durak.States
     
     public readonly struct ForceDrawCardEvent : INetworkEvent
     {
-        private readonly CardSpawner _cardSpawner;
+        private static CardSpawner _cardSpawner;
+        
+        //serialized
         private readonly NetworkConnection _networkConnection;
 
-        public ForceDrawCardEvent(CardSpawner cardSpawner, NetworkConnection networkConnection)
+        public ForceDrawCardEvent(NetworkConnection networkConnection)
+        {
+            _networkConnection = networkConnection;
+        }
+
+        public static void InitializeStatic(CardSpawner cardSpawner)
         {
             _cardSpawner = cardSpawner;
-            _networkConnection = networkConnection;
         }
         
         public void PerformEvent()
