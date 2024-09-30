@@ -10,7 +10,7 @@ using UnityEngine.Events;
 
 namespace Durak.States
 {
-    public class TurnStateController : MonoBehaviour, IState
+    public class TurnStateController : NetworkObject, IState
     {
         public static event Action OnEnterTurnState;
         public static event Action OnDefenderWinsTurn;
@@ -28,22 +28,28 @@ namespace Durak.States
         private readonly Dictionary<NetworkConnection, bool> _attackerGiveUpLookup = new();
         private int _defenderRotationCount;
 
-        private void Awake()
+        protected override void Awake()
         {
+            base.Awake();
+            
             _gameStateManager = GetComponent<GameStateManager>();
             
             StartGameStateController.OnStartGameCompleted += EnterTurnState;
             
             DefenderGiveUpEvent.OnPerformEvent += OnDefenderGiveUp;
             AttackerGiveUpEvent.OnPerformEvent += OnAttackerGiveUp;
+            LeaveLobbyEvent.OnPerformEvent += AddCardToDeck;
         }
 
-        private void OnDestroy()
+        protected override void OnDestroy()
         {
+            base.OnDestroy();
+            
             StartGameStateController.OnStartGameCompleted -= EnterTurnState;
             
             DefenderGiveUpEvent.OnPerformEvent -= OnDefenderGiveUp;
             AttackerGiveUpEvent.OnPerformEvent -= OnAttackerGiveUp;
+            LeaveLobbyEvent.OnPerformEvent -= AddCardToDeck;
         }
 
         #region Public Methods
@@ -76,7 +82,13 @@ namespace Durak.States
 
         #endregion
 
-        
+        private void AddCardToDeck(NetworkConnection disconnectedClient)
+        {
+            var playerData = playerDataRuntimeSet.GetItems().Find(x => x.Connection.Equals(disconnectedClient));
+            gameData.DeckCards.AddRange(playerData.Cards);
+            playerDataRuntimeSet.RemoveItem(playerData);
+        }
+
         #region State Logic
 
         public void Enter()
@@ -101,6 +113,8 @@ namespace Durak.States
         }
 
         #endregion
+        
+        
 
         #region Private Methods
         
@@ -173,12 +187,12 @@ namespace Durak.States
             var notCompletedCount = 0;
             foreach (var playerData in playerDataRuntimeSet.GetItems())
             {
-                if (playerData.Cards.Count == 0 && gameData.CanDrawCard())
+                if (playerData.Cards.Count == 0 && !gameData.CanDrawCard())
                 {
                     if (playerData.RoleType is PlayerRoleType.Defender)
                     {
                         Debug.LogWarning($"Defender with networkConnection {playerData.Connection} is done!");
-                        OnDefenderTurnWin(GetComponent<IdleStateController>());
+                        OnDefenderTurnWin(new IdleState());
 
                         if (_gameStateManager.Owner.Equals(NetworkManager.Instance.LocalConnection))
                         {
@@ -201,7 +215,7 @@ namespace Durak.States
 
             if (notCompletedCount <= 1)
             {
-                _gameStateManager.RequestState(GetComponent<IdleStateController>());
+                _gameStateManager.RequestState(new IdleState());
                 
                 if (_gameStateManager.Owner.Equals(NetworkManager.Instance.LocalConnection))
                 {
@@ -210,7 +224,7 @@ namespace Durak.States
                 }
                 
                 onGameComplete?.Invoke();
-                OnGameComplete?.Invoke();;
+                OnGameComplete?.Invoke();
             }
         }
         
@@ -269,6 +283,23 @@ namespace Durak.States
         public void PerformEvent()
         {
             OnPerformEvent?.Invoke(_attacker);
+        }
+    }
+    
+    public readonly struct LeaveLobbyEvent : INetworkEvent
+    {
+        public static event Action<NetworkConnection> OnPerformEvent;
+        
+        private readonly NetworkConnection _networkConnection;
+        
+        public LeaveLobbyEvent(NetworkConnection networkConnection)
+        {
+            _networkConnection = networkConnection;
+        }
+        
+        public void PerformEvent()
+        {
+            OnPerformEvent?.Invoke(_networkConnection);
         }
     }
 }

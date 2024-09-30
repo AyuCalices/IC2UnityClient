@@ -8,6 +8,8 @@ namespace Durak.States
 {
     public class GameStateManager : NetworkObject, IStateManaged, IOnAfterAcquireOwnership, IOnBeforeLoseOwnership
     {
+        
+        
         public event Action OnStateAuthorityAcquired;
         public event Action OnStateAuthorityLost;
 

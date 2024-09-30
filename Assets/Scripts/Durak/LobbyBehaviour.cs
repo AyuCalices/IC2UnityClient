@@ -10,7 +10,6 @@ using Plugins.EventNetworking.NetworkEvent;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.UI;
 
 namespace Durak
 {
@@ -18,6 +17,7 @@ namespace Durak
     {
         [Header("Data")]
         [SerializeField] private GameBalancing gameBalancing;
+        [SerializeField] private GameData gameData;
         [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
         
         [Header("Instantiate")]
@@ -124,7 +124,7 @@ namespace Durak
         public override void OnClientLeftLobby(NetworkConnection disconnectedClient)
         {
             _isReadyLookup.Remove(disconnectedClient);
-
+            
             var lobbyClientElement = _instantiatedLobbyClientElements.Find(x => x.NetworkConnection.Equals(disconnectedClient));
             _instantiatedLobbyClientElements.Remove(lobbyClientElement);
             Destroy(lobbyClientElement.gameObject);
@@ -139,6 +139,7 @@ namespace Durak
             {
                 Destroy(_instantiatedLobbyClientElements[i].gameObject);
             }
+            
             _instantiatedLobbyClientElements.Clear();
         }
 

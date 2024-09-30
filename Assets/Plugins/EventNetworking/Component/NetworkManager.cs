@@ -426,7 +426,7 @@ namespace Plugins.EventNetworking.Component
             }
         }
 
-        internal void OnDisconnected()
+        internal void OnDisconnect()
         {
             ConnectionType = ConnectionType.None;
             
@@ -437,7 +437,7 @@ namespace Plugins.EventNetworking.Component
             
             foreach (var keyValuePair in NetworkObjects)
             {
-                keyValuePair.Value.OnDisconnected();
+                keyValuePair.Value.OnDisconnect();
             }
         }
 

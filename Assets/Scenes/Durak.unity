@@ -724,6 +724,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c370d03ea8e60834e948fa076e1ee25d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  serializeFieldSceneGuid: 974d1122-e4ec-454e-92c4-787d2ac2b628
+  prefabPath: 
+  migrateOwnerOnLeaveLobby: 0
   gameData: {fileID: 11400000, guid: 8eaf3fb2c1bc42f40bef480082669deb, type: 2}
   playerDataRuntimeSet: {fileID: 11400000, guid: 57622306af2e3464aac966c4ac712662, type: 2}
   cardHandSpawner: {fileID: 2584523493374087423}
@@ -3211,7 +3214,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: -0.000030517578, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 1000, y: 300}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1245335547
@@ -5873,8 +5876,8 @@ MonoBehaviour:
   m_TargetGraphic: {fileID: 541342664}
   m_HandleRect: {fileID: 541342663}
   m_Direction: 0
-  m_Value: 1
-  m_Size: 0.9999983
+  m_Value: 0
+  m_Size: 1
   m_NumberOfSteps: 0
   m_OnValueChanged:
     m_PersistentCalls:
@@ -6121,6 +6124,7 @@ MonoBehaviour:
   prefabPath: 
   migrateOwnerOnLeaveLobby: 0
   gameBalancing: {fileID: 11400000, guid: f0beb7776fab8f54ea1a4ace32dcb6ca, type: 2}
+  gameData: {fileID: 0}
   playerDataRuntimeSet: {fileID: 11400000, guid: 57622306af2e3464aac966c4ac712662, type: 2}
   lobbyClientElementPrefab: {fileID: 6505410618549572884, guid: 1399f3dd7d739844fb35874a5f17176e, type: 3}
   instantiationParent: {fileID: 1355522493}

@@ -280,7 +280,7 @@ namespace Plugins.EventNetworking.Component
 
         public virtual void OnClientLeftLobby(NetworkConnection disconnectedClient) { }
         
-        public virtual void OnDisconnected() { }
+        public virtual void OnDisconnect() { }
 
         #endregion
     }

@@ -35,7 +35,7 @@ namespace Durak
             CurrentDefenderRotationIndex = 0;
         }
         
-        public bool CanDrawCard() => DeckCards.Count == 0;
+        public bool CanDrawCard() => DeckCards.Count != 0;
         
         public List<Card> TryDrawCards(int drawCount)
         {

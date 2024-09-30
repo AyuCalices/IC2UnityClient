@@ -18,8 +18,6 @@ namespace Durak
         {
             int cardCountDelta = 0;
             
-            Debug.Log(_gameBalancing.CardGenerators.Count);
-            
             foreach (var cardGenerator in _gameBalancing.CardGenerators)
             {
                 _gameData.DeckCards.Add(cardGenerator.Generate());

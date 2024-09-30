@@ -92,14 +92,14 @@ namespace Plugins.EventNetworking.Core
             {
                 if (_webSocket != null)
                 {
+                    _networkManager.OnDisconnect();
+                    
                     if (_webSocket.State == WebSocketState.Open)
                     {
                         _webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Application closing", _cancellationToken.Token).Wait();
                     }
                     _webSocket.Dispose();
                     _webSocket = null;
-
-                    _networkManager.OnDisconnected();
                 }
                 _cancellationToken.Cancel();
             }
