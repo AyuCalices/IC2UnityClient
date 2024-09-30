@@ -31,7 +31,6 @@ namespace Durak.UI
         [SerializeField] private UnityEvent tryEnterCreateLobbyView;
         
         private readonly List<LobbyListElement> _instantiatedLobbyListElements = new ();
-        private bool _connectedToServer;
 
         private void Start()
         {
@@ -41,22 +40,9 @@ namespace Durak.UI
             }
         }
 
-        //TODO: implement disconnected
         private void OnConnectedToServer()
         {
-            _connectedToServer = true;
-            StartCoroutine(UpdateLobbyList());
-        }
-
-        private IEnumerator UpdateLobbyList()
-        {
             NetworkManager.Instance.FetchLobby();
-            
-            while (true)
-            {
-                yield return new WaitForSeconds(refreshLobbyListTime);
-                NetworkManager.Instance.FetchLobby();
-            }
         }
 
         public void RefreshLobbyList()
@@ -64,12 +50,9 @@ namespace Durak.UI
             NetworkManager.Instance.FetchLobby();
         }
 
-        private void OnEnable()
+        public override void OnLeaveLobby()
         {
-            if (_connectedToServer)
-            {
-                NetworkManager.Instance.FetchLobby();
-            }
+            NetworkManager.Instance.FetchLobby();
         }
 
         public override void OnLobbiesFetched(LobbiesData[] lobbiesData)

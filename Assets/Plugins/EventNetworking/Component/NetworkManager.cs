@@ -11,6 +11,8 @@ namespace Plugins.EventNetworking.Component
 {
     public enum ErrorType { LobbyAlreadyExists, AlreadyInLobby, LobbyNotFound, LobbyFull, InvalidPassword, NotInLobby, NoLobbyJoined }
     
+    public enum ConnectionType { None, Connected, JoinedLobby }
+    
     public sealed class NetworkManager : PersistentMonoSingleton<NetworkManager>
     {
         //write about cecil -> to complex, because of that -> delegate
@@ -52,6 +54,7 @@ namespace Plugins.EventNetworking.Component
         public Dictionary<string, NetworkObject> NetworkObjects { get; } = new();
         public List<NetworkConnection> LobbyConnections { get; } = new();
         public NetworkConnection LocalConnection { get; private set; }
+        public ConnectionType ConnectionType { get; private set; }
 
         
         private NetworkController _networkController;
@@ -307,6 +310,7 @@ namespace Plugins.EventNetworking.Component
             }
             
             LocalConnection = ownConnection;
+            ConnectionType = ConnectionType.Connected;
             
             foreach (var keyValuePair in NetworkObjects)
             {
@@ -335,6 +339,7 @@ namespace Plugins.EventNetworking.Component
             }
             
             LobbyConnections.Add(LocalConnection);
+            ConnectionType = ConnectionType.JoinedLobby;
             
             foreach (var keyValuePair in NetworkObjects)
             {
@@ -353,6 +358,8 @@ namespace Plugins.EventNetworking.Component
             {
                 LobbyConnections.Add(new NetworkConnection(clientID));
             }
+
+            ConnectionType = ConnectionType.JoinedLobby;
             
             foreach (var keyValuePair in NetworkObjects)
             {
@@ -396,6 +403,7 @@ namespace Plugins.EventNetworking.Component
             }
             
             LobbyConnections.Clear();
+            ConnectionType = ConnectionType.Connected;
             
             foreach (var keyValuePair in NetworkObjects)
             {
@@ -415,6 +423,21 @@ namespace Plugins.EventNetworking.Component
             foreach (var keyValuePair in NetworkObjects)
             {
                 keyValuePair.Value.InternalOnClientLeftLobby(disconnectedClient);
+            }
+        }
+
+        internal void OnDisconnected()
+        {
+            ConnectionType = ConnectionType.None;
+            
+            if (debug)
+            {
+                Debug.Log($"Disconnected!");
+            }
+            
+            foreach (var keyValuePair in NetworkObjects)
+            {
+                keyValuePair.Value.OnDisconnected();
             }
         }
 

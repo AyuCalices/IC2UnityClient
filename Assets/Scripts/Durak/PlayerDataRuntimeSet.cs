@@ -12,9 +12,20 @@ namespace Durak
     [CreateAssetMenu]
     public class PlayerDataRuntimeSet : RuntimeSet<PlayerData>
     {
+        public List<PlayerData> disconnectedPlayers = new();
+        
         private void OnEnable()
         {
             Restore();
+        }
+
+        public void SetToDisconnectedPlayers(PlayerData playerData)
+        {
+            if (items.Contains(playerData))
+            {
+                items.Remove(playerData);
+                disconnectedPlayers.Add(playerData);
+            }
         }
 
         public PlayerData GetLocalPlayerData()

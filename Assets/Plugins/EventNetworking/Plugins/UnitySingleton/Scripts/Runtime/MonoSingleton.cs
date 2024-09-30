@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace UnityCommunity.UnitySingleton
 {
-
+    
     /// <summary>
     /// The basic MonoBehaviour singleton implementation, this singleton is destroyed after scene changes, use <see cref="PersistentMonoSingleton{T}"/> if you want a persistent and global singleton instance.
     /// </summary>

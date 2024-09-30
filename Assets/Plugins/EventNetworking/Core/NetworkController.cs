@@ -98,6 +98,8 @@ namespace Plugins.EventNetworking.Core
                     }
                     _webSocket.Dispose();
                     _webSocket = null;
+
+                    _networkManager.OnDisconnected();
                 }
                 _cancellationToken.Cancel();
             }

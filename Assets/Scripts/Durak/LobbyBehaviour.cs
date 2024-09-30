@@ -62,6 +62,11 @@ namespace Durak
             networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, !_isReadyLookup[networkManager.LocalConnection]));
         }
 
+        public void LeaveLobby()
+        {
+            NetworkManager.Instance.LeaveLobby();
+        }
+
         #region Networking Lifecycle
 
         public override void OnConnected(NetworkConnection ownConnection)
@@ -119,6 +124,22 @@ namespace Durak
         public override void OnClientLeftLobby(NetworkConnection disconnectedClient)
         {
             _isReadyLookup.Remove(disconnectedClient);
+
+            var lobbyClientElement = _instantiatedLobbyClientElements.Find(x => x.NetworkConnection.Equals(disconnectedClient));
+            _instantiatedLobbyClientElements.Remove(lobbyClientElement);
+            Destroy(lobbyClientElement.gameObject);
+        }
+
+        public override void OnLeaveLobby()
+        {
+            base.OnLeaveLobby();
+            
+            _isReadyLookup.Clear();
+            for (var i = _instantiatedLobbyClientElements.Count - 1; i >= 0; i--)
+            {
+                Destroy(_instantiatedLobbyClientElements[i].gameObject);
+            }
+            _instantiatedLobbyClientElements.Clear();
         }
 
         #endregion

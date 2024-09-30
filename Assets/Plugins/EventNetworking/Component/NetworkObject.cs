@@ -279,6 +279,8 @@ namespace Plugins.EventNetworking.Component
         public virtual void OnLeaveLobby() { }
 
         public virtual void OnClientLeftLobby(NetworkConnection disconnectedClient) { }
+        
+        public virtual void OnDisconnected() { }
 
         #endregion
     }
