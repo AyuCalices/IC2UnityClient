@@ -3,13 +3,10 @@ using Random = UnityEngine.Random;
 
 namespace Durak
 {
-    //done
     public class CardDeckGenerator
     {
         private readonly GameData _gameData;
         private readonly GameBalancing _gameBalancing;
-
-        private int _cardCountDelta;
 
         public CardDeckGenerator(GameData gameData, GameBalancing gameBalancing)
         {
@@ -19,12 +16,16 @@ namespace Durak
 
         public void InitializeDeck(int seed)
         {
+            int cardCountDelta = 0;
+            
+            Debug.Log(_gameBalancing.CardGenerators.Count);
+            
             foreach (var cardGenerator in _gameBalancing.CardGenerators)
             {
                 _gameData.DeckCards.Add(cardGenerator.Generate());
                 
-                _cardCountDelta++;
-                if (_cardCountDelta >= _gameBalancing.MaxCardCount)
+                cardCountDelta++;
+                if (cardCountDelta >= _gameBalancing.MaxDeckCardCount)
                 {
                     break;
                 }
@@ -32,9 +33,6 @@ namespace Durak
             
             Random.InitState(seed);
             Shuffle();
-
-            _gameData.TrumpType = _gameData.DeckCards[0].CardType;
-            Debug.Log($"Trump is {_gameData.DeckCards[0].CardType}");
         }
 
         private void Shuffle()

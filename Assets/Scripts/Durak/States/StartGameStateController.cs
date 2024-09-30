@@ -44,8 +44,13 @@ namespace Durak.States
 
         public void Enter()
         {
+            gameData.AddPlayerCardsToDestroyed();
+            gameData.Restore();
+            
             _cardDeckGenerator.InitializeDeck(gameData.Seed);
-            Debug.LogWarning("Seed: " + gameData.Seed);
+
+            gameData.Trump = gameData.DeckCards[0];
+            
             OnStartGameCompleted?.Invoke();
         }
 

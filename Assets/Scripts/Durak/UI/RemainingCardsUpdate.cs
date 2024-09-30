@@ -32,7 +32,12 @@ namespace Durak.UI
         
         private void SetTrump()
         {
-            image.sprite = gameData.DeckCards[0].Sprite;
+            if (gameData.DeckCards.Count == 0)
+            {
+                Debug.LogWarning("No deck cards present!");
+                return;
+            }
+            image.sprite = gameData.Trump.Sprite;
         }
     }
 }

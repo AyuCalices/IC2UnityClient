@@ -12,15 +12,13 @@ namespace Plugins.EventNetworking.NetworkEvent
             _networkObject = networkObject;
         }
 
-        private bool IsOwner => _networkObject.Owner.Equals(NetworkManager.Instance.LocalConnection);
-
         public void PerformEvent()
         {
             if (!_networkObject.HasOwner) return;
 
             var newConnection = new NetworkConnection();
 
-            if (IsOwner)
+            if (_networkObject.Owner.Equals(NetworkManager.Instance.LocalConnection))
             {
                 _networkObject.OnBeforeLoseOwnership(_networkObject.Owner, newConnection);
             }

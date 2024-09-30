@@ -6,6 +6,7 @@ using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
 using Plugins.EventNetworking.NetworkEvent;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace Durak.States
 {
@@ -14,12 +15,14 @@ namespace Durak.States
         public static event Action OnEnterTurnState;
         public static event Action OnDefenderWinsTurn;
         public static event Action OnAttackerWinsTurn;
-        
+        public static event Action OnGameComplete;
+
         [SerializeField] private GameData gameData;
         [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
         [SerializeField] private CardHandSpawner cardHandSpawner;
         [SerializeField] private GameObject defenderButton;
         [SerializeField] private GameObject attackerButton;
+        [SerializeField] private UnityEvent onGameComplete;
 
         private GameStateManager _gameStateManager;
         private readonly Dictionary<NetworkConnection, bool> _attackerGiveUpLookup = new();
@@ -84,8 +87,6 @@ namespace Durak.States
             OnEnterTurnState?.Invoke();
             
             InitializeAttackerDefender();
-            Debug.Log("Player Role: " + playerDataRuntimeSet.GetLocalPlayerData().RoleType);
-            UpdateLocalButtonUI();
             SetupAttackerGiveUpState();
         }
 
@@ -148,12 +149,8 @@ namespace Durak.States
                 
                 _attackerGiveUpLookup[playerData.Connection] = false;
             }
-
-            var localPlayerRole = playerDataRuntimeSet.GetLocalPlayerData().RoleType;
-            if (localPlayerRole is PlayerRoleType.Attacker)
-            {
-                attackerButton.SetActive(true);
-            }
+            
+            UpdateLocalButtonUI();
         }
 
         private void UpdateLocalButtonUI()
@@ -164,7 +161,7 @@ namespace Durak.States
                 attackerButton.SetActive(false);
                 defenderButton.SetActive(true);
             }
-            else if (localPlayerRole is PlayerRoleType.Attacker)
+            else
             {
                 attackerButton.SetActive(true);
                 defenderButton.SetActive(false);
@@ -181,7 +178,16 @@ namespace Durak.States
                     if (playerData.RoleType is PlayerRoleType.Defender)
                     {
                         Debug.LogWarning($"Defender with networkConnection {playerData.Connection} is done!");
-                        OnDefenderTurnWin(new EndGameState());
+                        OnDefenderTurnWin(GetComponent<IdleStateController>());
+
+                        if (_gameStateManager.Owner.Equals(NetworkManager.Instance.LocalConnection))
+                        {
+                            _gameStateManager.SecureReleaseOwnership();
+                            NetworkManager.Instance.RequestClearEventCache();
+                        }
+                        
+                        onGameComplete?.Invoke();
+                        OnGameComplete?.Invoke();;
                         return;
                     }
 
@@ -195,7 +201,16 @@ namespace Durak.States
 
             if (notCompletedCount <= 1)
             {
-                _gameStateManager.RequestState(new EndGameState());
+                _gameStateManager.RequestState(GetComponent<IdleStateController>());
+                
+                if (_gameStateManager.Owner.Equals(NetworkManager.Instance.LocalConnection))
+                {
+                    _gameStateManager.SecureReleaseOwnership();
+                    NetworkManager.Instance.RequestClearEventCache();
+                }
+                
+                onGameComplete?.Invoke();
+                OnGameComplete?.Invoke();;
             }
         }
         
@@ -220,7 +235,7 @@ namespace Durak.States
         
         private void OnDefenderGiveUp()
         {
-            gameData.TryAddTableCardsToDefender();
+            gameData.AddTableCardsToDefender();
             OnAttackerWinsTurn?.Invoke();
 
             _defenderRotationCount = 2;

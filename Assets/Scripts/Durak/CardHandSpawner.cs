@@ -8,7 +8,6 @@ using UnityEngine;
 
 namespace Durak
 {
-    //done
     public class CardHandSpawner : MonoBehaviour
     {
         [Header("Data")]
@@ -28,6 +27,7 @@ namespace Durak
         {
             TurnStateController.OnEnterTurnState += DrawCardsForAll;
             ForceDrawCardEvent.OnPerformEvent += ForceAddCardForPlayer;
+            
         }
         
         private void Update()
@@ -44,11 +44,16 @@ namespace Durak
             ForceDrawCardEvent.OnPerformEvent -= ForceAddCardForPlayer;
         }
 
+        private void DestroyLocal()
+        {
+            
+        }
+
         private void DrawCardsForAll()
         {
             foreach (var connection in NetworkManager.Instance.LobbyConnections)
             {
-                DrawCardsForPlayer(connection, gameBalancing.TargetCardCount);
+                DrawCardsForPlayer(connection, gameBalancing.PlayerHandCardCount);
             }
         }
 

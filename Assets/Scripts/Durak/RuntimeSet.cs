@@ -32,7 +32,7 @@ namespace Durak
             }
         }
         
-        private void OnEnable()
+        public void Restore()
         {
             items.Clear();
             OnItemsCleared?.Invoke();

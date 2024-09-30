@@ -14,15 +14,22 @@ namespace Durak.UI
 {
     public class LobbyListSpawner : NetworkObject
     {
-        [SerializeField] private LobbyListElement lobbyListElementPrefab;
-        [SerializeField] private TMP_InputField inputField;
-        [SerializeField] private UnityEvent tryEnterCreateLobbyView;
-        [SerializeField] private UnityEvent tryEnterLobbyView;
+        [Header("Refresh Time")]
         [SerializeField] private float refreshLobbyListTime;
+        
+        [Header("Instantiation")]
+        [SerializeField] private LobbyListElement lobbyListElementPrefab;
+        [SerializeField] private Transform instantiationParent;
+        
+        [Header("Development")]
         [SerializeField] private bool generateRandomName;
         [SerializeField] private bool autoJoinLobby;
         [SerializeField] private UnityEvent onAutoJoinLobby;
-
+        
+        [Header("UI")]
+        [SerializeField] private TMP_InputField inputField;
+        [SerializeField] private UnityEvent tryEnterCreateLobbyView;
+        
         private readonly List<LobbyListElement> _instantiatedLobbyListElements = new ();
         private bool _connectedToServer;
 
@@ -34,13 +41,14 @@ namespace Durak.UI
             }
         }
 
+        //TODO: implement disconnected
         private void OnConnectedToServer()
         {
             _connectedToServer = true;
-            StartCoroutine(RefreshLobbyList());
+            StartCoroutine(UpdateLobbyList());
         }
 
-        private IEnumerator RefreshLobbyList()
+        private IEnumerator UpdateLobbyList()
         {
             NetworkManager.Instance.FetchLobby();
             
@@ -49,6 +57,11 @@ namespace Durak.UI
                 yield return new WaitForSeconds(refreshLobbyListTime);
                 NetworkManager.Instance.FetchLobby();
             }
+        }
+
+        public void RefreshLobbyList()
+        {
+            NetworkManager.Instance.FetchLobby();
         }
 
         private void OnEnable()
@@ -96,7 +109,7 @@ namespace Durak.UI
         {
             foreach (var data in lobbiesData)
             {
-                var instantiatedElement = Instantiate(lobbyListElementPrefab, transform);
+                var instantiatedElement = Instantiate(lobbyListElementPrefab, instantiationParent);
                 instantiatedElement.Initialize(data, ConnectToLobby);
                 _instantiatedLobbyListElements.Add(instantiatedElement);
             }
@@ -107,8 +120,6 @@ namespace Durak.UI
             if (string.IsNullOrEmpty(inputField.text)) return;
         
             NetworkManager.Instance.JoinLobby(lobbyName, password);
-            
-            tryEnterLobbyView?.Invoke();
         }
 
         public void TryEnterCreateLobbyView()

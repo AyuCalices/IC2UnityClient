@@ -23,6 +23,7 @@ namespace Durak
 
             PlateSlotInstantiationCompleteEvent.OnPerformEvent += AddCardSlotBehaviour;
             TurnStateController.OnDefenderWinsTurn += DestroyCardSlots;
+            TurnStateController.OnGameComplete += DestroyCardSlots;
         }
 
         protected override void OnDestroy()
@@ -31,6 +32,7 @@ namespace Durak
             
             PlateSlotInstantiationCompleteEvent.OnPerformEvent -= AddCardSlotBehaviour;
             TurnStateController.OnDefenderWinsTurn -= DestroyCardSlots;
+            TurnStateController.OnGameComplete -= DestroyCardSlots;
         }
 
         private void DestroyCardSlots()

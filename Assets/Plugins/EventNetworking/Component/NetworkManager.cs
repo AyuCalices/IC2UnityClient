@@ -25,10 +25,7 @@ namespace Plugins.EventNetworking.Component
          * Callbacks for network events
          */
         
-        //TODO: maybe class for stuff inside the lobby & maybe class for lobby connecting -> low prio
-        
-        //TODO: build game and improve based on what is needed for that game -> the game should be the prime target
-        //TODO: implemen OnClientDisconnected & OnDisconnect callback
+        //TODO: implement OnClientDisconnected & OnDisconnect callback
         //TODO: check what to do for host migration and reconnecting
 
         [SerializeField] private PrefabRegistry prefabRegistry;
@@ -145,6 +142,11 @@ namespace Plugins.EventNetworking.Component
         public void RequestRaiseEventCached(INetworkEvent networkEvent, params INetworkEvent[] stackingNetworkEvents)
         {
             _networkController.RequestRaiseEventCache(networkEvent, stackingNetworkEvents);
+        }
+
+        public void RequestClearEventCache()
+        {
+            _networkController.RequestClearEventCache();
         }
         
         public void NetworkShareRuntimeObject<T>(T networkObject, params INetworkEvent[] onInstantiateCompleteNetworkEvents) where T : NetworkObject

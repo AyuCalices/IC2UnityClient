@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
@@ -11,7 +12,7 @@ namespace Durak
         [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
         
         [field: SerializeField] public int Seed { get; set; }
-        [field: SerializeField] public CardType TrumpType { get; set; }
+        [field: SerializeField] public Card Trump { get; set; }
         [field: SerializeField] public List<Card> DeckCards { get; set; }
         [field: SerializeField] public List<Card> TableCards { get; set; }
         [field: SerializeField] public List<Card> GameRemovedCards { get; set; }
@@ -24,10 +25,10 @@ namespace Durak
             Restore();
         }
 
-        private void Restore()
+        public void Restore()
         {
             Seed = 0;
-            TrumpType = null;
+            Trump = null;
             DeckCards.Clear();
             TableCards.Clear();
             GameRemovedCards.Clear();
@@ -54,7 +55,7 @@ namespace Durak
         {
             var finalStrength = card.CardStrength;
             
-            if (TrumpType == card.CardType)
+            if (Trump.CardType == card.CardType)
             {
                 finalStrength += TrumpStrengthAddition;
             }
@@ -80,10 +81,19 @@ namespace Durak
             TableCards.Clear();
         }
 
-        public void TryAddTableCardsToDefender()
+        public void AddTableCardsToDefender()
         {
             playerDataRuntimeSet.GetDefenderPlayerData().Cards.AddRange(TableCards);;
             TableCards.Clear();
+        }
+        
+        public void AddPlayerCardsToDestroyed()
+        {
+            foreach (var playerData in playerDataRuntimeSet.GetItems())
+            {
+                GameRemovedCards.AddRange(playerData.Cards);
+                playerData.Cards.Clear();
+            }
         }
 
         public NetworkConnection RotateDefenderIndex(int rotationCount)

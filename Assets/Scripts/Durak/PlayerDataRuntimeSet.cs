@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Durak.Networking;
@@ -11,6 +12,11 @@ namespace Durak
     [CreateAssetMenu]
     public class PlayerDataRuntimeSet : RuntimeSet<PlayerData>
     {
+        private void OnEnable()
+        {
+            Restore();
+        }
+
         public PlayerData GetLocalPlayerData()
         {
             return GetPlayerData(NetworkManager.Instance.LocalConnection);

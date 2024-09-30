@@ -1,6 +1,7 @@
 using System;
 using Durak.Networking;
 using Durak.States;
+using Plugins.EventNetworking.Component;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,13 +11,20 @@ namespace Durak.UI
     public class PlayerOverviewElement : MonoBehaviour
     {
         [SerializeField] private GameData gameData;
+        
+        [Header("Text")]
         [SerializeField] private TMP_Text playerName;
         [SerializeField] private TMP_Text cardCount;
-        [SerializeField] private Image image;
 
-        [Header("Sprites")] 
+        [Header("Role")] 
+        [SerializeField] private Image image;
         [SerializeField] private Sprite swordSprite;
         [SerializeField] private Sprite shieldSprite;
+
+        [Header("Background Color")] 
+        [SerializeField] private Image background;
+        [SerializeField] private Color defaultColor;
+        [SerializeField] private Color highlightColor;
 
         public PlayerData PlayerData { get; set; }
         

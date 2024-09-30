@@ -46,6 +46,7 @@ namespace Plugins.EventNetworking.Core
         private const string LeaveLobbyClientResponse = "leaveLobbyClientResponse";
         private const string LeaveLobbyBroadcastResponse = "leaveLobbyBroadcastResponse";
         
+        private const string clearCacheEventRequest = "clearCacheEventRequest";
         private const string CacheEventRequest = "cacheEventRequest";
         private const string EventRequest = "clientEventRequest";
         private const string EventResponse = "clientEventResponse";
@@ -115,6 +116,16 @@ namespace Plugins.EventNetworking.Core
         {
             RequestRaiseEvent(CacheEventRequest, networkEvent, stackingNetworkEvents);
         }
+
+        public void RequestClearEventCache()
+        {
+            var clearCacheMessage = new
+            {
+                type = clearCacheEventRequest
+            };
+            var jsonMessage = JsonConvert.SerializeObject(clearCacheMessage);
+            SendMessageToServer(jsonMessage);
+        }
         
         public void FetchLobby()
         {
@@ -126,26 +137,26 @@ namespace Plugins.EventNetworking.Core
             SendMessageToServer(jsonMessage);
         }
         
-        public void CreateLobby(string lobbyName, int lobbyCapacity, string password = null)
+        public void CreateLobby(string lobbyName, int lobbyCapacity, string newPassword = null)
         {
             var joinMessage = new
             {
                 type = CreateLobbyRequest,
                 lobby = lobbyName,
                 capacity = lobbyCapacity,
-                password = "password"
+                password = newPassword
             };
             var jsonMessage = JsonConvert.SerializeObject(joinMessage);
             SendMessageToServer(jsonMessage);
         }
         
-        public void JoinLobby(string lobbyName, string password = null)
+        public void JoinLobby(string lobbyName, string newPassword = null)
         {
             var joinMessage = new
             {
                 type = JoinLobbyRequest,
                 lobby = lobbyName,
-                password = "password"
+                password = newPassword
             };
             var jsonMessage = JsonConvert.SerializeObject(joinMessage);
             SendMessageToServer(jsonMessage);

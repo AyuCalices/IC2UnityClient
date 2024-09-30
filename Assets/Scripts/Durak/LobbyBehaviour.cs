@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Durak.Networking;
 using Durak.UI;
 using Plugins.EventNetworking.Component;
@@ -11,16 +10,26 @@ using Plugins.EventNetworking.NetworkEvent;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
+using UnityEngine.UI;
 
 namespace Durak
 {
     public class LobbyBehaviour : NetworkObject
     {
-        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
+        [Header("Data")]
         [SerializeField] private GameBalancing gameBalancing;
-        [SerializeField] private TMP_InputField inputField;
-        [SerializeField] private UnityEvent onClientStartsGame;
+        [SerializeField] private PlayerDataRuntimeSet playerDataRuntimeSet;
+        
+        [Header("Instantiate")]
         [SerializeField] private LobbyClientElement lobbyClientElementPrefab;
+        [SerializeField] private Transform instantiationParent;
+        
+        [Header("UI")]
+        [SerializeField] private TMP_InputField inputField;
+        
+        [Header("Events")]
+        [SerializeField] private UnityEvent onClientStartsGame;
+        [SerializeField] private UnityEvent onLobbyJoined;
         
         private readonly Dictionary<NetworkConnection, bool> _isReadyLookup = new();
         private readonly List<LobbyClientElement> _instantiatedLobbyClientElements = new();
@@ -45,12 +54,12 @@ namespace Durak
 
         #endregion
         
-        public void UpdateIsReadyNetworkEvent(bool isReady)
+        public void ToggleIsReadyNetworkEvent()
         {
             if (string.IsNullOrEmpty(inputField.text)) return;
             
             var networkManager = NetworkManager.Instance;
-            networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, isReady));
+            networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, !_isReadyLookup[networkManager.LocalConnection]));
         }
 
         #region Networking Lifecycle
@@ -63,36 +72,47 @@ namespace Durak
         public override void OnLobbyCreated()
         {
             var networkConnection = NetworkManager.Instance.LocalConnection;
+            
+            //setup data
             AddElement(networkConnection);
+            
+            //set name
             SetName(NetworkManager.Instance.LocalConnection, inputField.text);
             
-            //when creating the lobby, there is no other client -> no event needed
+            onLobbyJoined?.Invoke();
         }
 
         public override void OnLobbyJoined(JoinLobbyClientData joinLobbyClientData)
         {
             var networkManager = NetworkManager.Instance;
+            
+            //setup data
             foreach (var networkConnection in networkManager.LobbyConnections)
             {
                 AddElement(networkConnection);
             }
             
+            //set name
             SetName(NetworkManager.Instance.LocalConnection, inputField.text);
-            
             networkManager.RequestRaiseEvent(new ShareNameEvent(networkManager.LocalConnection, inputField.text));
+            
+            onLobbyJoined?.Invoke();
         }
 
         public override void OnClientJoinedLobby(NetworkConnection joinedClient)
         {
-            _isReadyLookup.TryAdd(joinedClient, false);
-            playerDataRuntimeSet.AddItem(new PlayerData(joinedClient));
-            
             var networkManager = NetworkManager.Instance;
+            
+            //setup data
+            AddElement(joinedClient);
+            
+            //set is ready
             if (_isReadyLookup.TryGetValue(networkManager.LocalConnection, out bool isReady) && isReady)   //new clients only need to be updated, if it is not the default value
             {
                 networkManager.RequestRaiseEvent(new UpdateIsReadyEvent(networkManager.LocalConnection, true));
             }
             
+            //set name
             networkManager.RequestRaiseEvent(new ShareNameEvent(networkManager.LocalConnection, playerDataRuntimeSet.GetLocalPlayerData().Name));
         }
 
@@ -108,7 +128,7 @@ namespace Durak
             _isReadyLookup.TryAdd(networkConnection, false);
             playerDataRuntimeSet.AddItem(new PlayerData(networkConnection));
             
-            var instantiatedElement = Instantiate(lobbyClientElementPrefab, transform);
+            var instantiatedElement = Instantiate(lobbyClientElementPrefab, instantiationParent);
             instantiatedElement.NetworkConnection = networkConnection;
             _instantiatedLobbyClientElements.Add(instantiatedElement);
         }
@@ -127,6 +147,17 @@ namespace Durak
             if (CanStart())
             {
                 onClientStartsGame?.Invoke();
+                
+                //reset isReady
+                foreach (var playerData in playerDataRuntimeSet.GetItems())
+                {
+                    _isReadyLookup[playerData.Connection] = false;
+                }
+                
+                foreach (var instantiatedLobbyClientElement in _instantiatedLobbyClientElements)
+                {
+                    instantiatedLobbyClientElement.UpdateIsReady(false);
+                }
             }
         }
 

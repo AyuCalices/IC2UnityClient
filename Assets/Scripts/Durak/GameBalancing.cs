@@ -7,12 +7,52 @@ namespace Durak
     [CreateAssetMenu]
     public class GameBalancing : ScriptableObject
     {
-        [field: SerializeField] public int MinPlayerCount { get; set; } = 2;
-        [field: SerializeField] public List<CardGenerator> CardGenerators { get; set; } = new();
-        [field: SerializeField] public int TargetCardCount { get; set; } = 6;
-        [field: SerializeField] public int MaxCardCount { get; set; } = 256;
-        [field: SerializeField] public bool UseCustomSeed { get; set; } = false;
-        [field: SerializeField] public int CustomSeed { get; set; } = 0;
+        [Header("Lobby")]
+        [SerializeField] private int minPlayerCount = 2;
+        
+        [Header("Deck")]
+        [SerializeField] private List<CardGenerator> cardGenerators;
+        [SerializeField] private int maxDeckCardCount = 256;
+        [SerializeField] private int playerHandCardCount = 6;
+        
+        [Header("Custom Seed")]
+        [SerializeField] private bool useCustomSeed;
+        [SerializeField] private int customSeed;
+        
+        
+        public int MinPlayerCount
+        {
+            get => minPlayerCount;
+            private set => minPlayerCount = value;
+        }
+        
+        public List<CardGenerator> CardGenerators { 
+            get => cardGenerators;
+            private set => cardGenerators = value;
+        }
+        
+        public int MaxDeckCardCount
+        {
+            get => maxDeckCardCount; 
+            private set => maxDeckCardCount = value;
+        }
+        
+        public int PlayerHandCardCount { 
+            get => playerHandCardCount;
+            private set => playerHandCardCount = value;
+        }
+
+        public bool UseCustomSeed
+        {
+            get => useCustomSeed; 
+            private set => useCustomSeed = value;
+        }
+
+        public int CustomSeed
+        {
+            get => customSeed; 
+            private set => customSeed = value;
+        }
         
         
         [ContextMenu("Utility: Find All Card Generators")]

@@ -25,6 +25,7 @@ namespace Durak
 
             TurnStateController.OnDefenderWinsTurn += DestroyCardsAndSlot;
             TurnStateController.OnAttackerWinsTurn += AttackerWin;
+            TurnStateController.OnGameComplete += DestroyCardsAndSlot;
         }
 
         protected override void OnDestroy()
@@ -33,6 +34,7 @@ namespace Durak
             
             TurnStateController.OnDefenderWinsTurn -= DestroyCardsAndSlot;
             TurnStateController.OnAttackerWinsTurn -= AttackerWin;
+            TurnStateController.OnGameComplete -= DestroyCardsAndSlot;
         }
 
         private void AttackerWin()
@@ -97,7 +99,7 @@ namespace Durak
             
             //can the card be placed?
             var newCardController = pointerDrag.GetComponent<CardController>();
-            if (newCardController.IsTrump(gameData.TrumpType))
+            if (newCardController.IsTrump(gameData.Trump.CardType))
             {
                 if (gameData.GetCardStrength(newCardController.Card) <= gameData.GetCardStrength(FirstCardController.Card)) return;
             }

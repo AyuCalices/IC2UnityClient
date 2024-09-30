@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9b4034dcefaec114380104143c943534, type: 3}
   m_Name: Game Balancing
   m_EditorClassIdentifier: 
-  <MinPlayerCount>k__BackingField: 2
-  <CardGenerators>k__BackingField:
+  minPlayerCount: 2
+  cardGenerators:
   - {fileID: 11400000, guid: 1f208a6ab39bcdf44b6eeb9f3d2ec60e, type: 2}
   - {fileID: 11400000, guid: 706f6ea4aa711c042acbcdffe8295526, type: 2}
   - {fileID: 11400000, guid: 43c41d1671d309f46ba616eddc765a40, type: 2}
@@ -66,7 +66,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: cd0c2cd0046800f4287f1498b07c249a, type: 2}
   - {fileID: 11400000, guid: c9174259fc2fca845b901dea44ce281e, type: 2}
   - {fileID: 11400000, guid: a9bcd3260237b4a4a87b427b8b4ca483, type: 2}
-  <TargetCardCount>k__BackingField: 6
-  <MaxCardCount>k__BackingField: 256
-  <UseCustomSeed>k__BackingField: 0
-  <CustomSeed>k__BackingField: 0
+  maxDeckCardCount: 5
+  playerHandCardCount: 3
+  useCustomSeed: 0
+  customSeed: 0

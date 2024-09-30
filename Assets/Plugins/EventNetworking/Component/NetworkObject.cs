@@ -247,12 +247,15 @@ namespace Plugins.EventNetworking.Component
             
             var networkManager = NetworkManager.Instance;
             var requestOwnershipEvent = new SaveRequestOwnershipEvent(this, networkManager.LocalConnection);
-            networkManager.RequestRaiseEvent(requestOwnershipEvent);
+            networkManager.RequestRaiseEventCached(requestOwnershipEvent);
         }
 
         public void SecureReleaseOwnership()
         {
-            NetworkManager.Instance.RequestRaiseEvent(new SaveReleaseOwnershipEvent(this));
+            if (!HasOwner) return;
+            if (!Owner.Equals(NetworkManager.Instance.LocalConnection)) return;
+            
+            NetworkManager.Instance.RequestRaiseEventCached(new SaveReleaseOwnershipEvent(this));
         }
 
         #endregion

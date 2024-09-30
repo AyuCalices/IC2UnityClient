@@ -3,7 +3,6 @@ using DataTypes.StateMachine;
 using Plugins.EventNetworking.Component;
 using Plugins.EventNetworking.Core;
 using Plugins.EventNetworking.Core.Callbacks;
-using UnityEngine;
 
 namespace Durak.States
 {
@@ -69,22 +68,4 @@ namespace Durak.States
     }
     
     public enum PlayerRoleType { None, Defender, FirstAttacker, Attacker }
-    
-    [Serializable]
-    public class EndGameState : IState
-    {
-        public void Enter()
-        {
-            //TODO: reset all
-            Debug.LogWarning("Game Completed");
-        }
-
-        public void Execute()
-        {
-        }
-
-        public void Exit()
-        {
-        }
-    }
 }

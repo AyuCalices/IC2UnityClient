@@ -7,10 +7,10 @@ namespace Durak.UI
 {
     public class CreateLobbyView : MonoBehaviour
     {
+        [Header("UI")]
         [SerializeField] private TMP_InputField lobbyNameInputField;
         [SerializeField] private TMP_InputField passwordInputField;
         [SerializeField] private TMP_InputField lobbyCapacityInputField;
-        [SerializeField] private UnityEvent onCreateLobby;
         
         public void CreateLobby()
         {
@@ -19,7 +19,6 @@ namespace Durak.UI
                 !int.TryParse(lobbyCapacityInputField.text, out int value)) return;
             
             NetworkManager.Instance.CreateLobby(lobbyNameInputField.text, value, passwordInputField.text);
-            onCreateLobby?.Invoke();
         }
     }
 }
