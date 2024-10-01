@@ -64,6 +64,21 @@ namespace Durak.States
             gameData.RotateDefenderIndex(Random.Range(0, lobbyConnections.Count));
         }
     }
+
+    public class StartGameState
+    {
+        public StartGameState()
+        {
+            StartGameStateEvent.OnPerformEvent += HandleSeed;
+        }
+
+        public void CallNetworkEvent()
+        {
+            NetworkManager.Instance.RequestRaiseEventCached(new StartGameStateEvent(Random.Range(0, 100000)));
+        }
+
+        private void HandleSeed(int seed) { }
+    }
     
     public readonly struct StartGameStateEvent : INetworkEvent
     {

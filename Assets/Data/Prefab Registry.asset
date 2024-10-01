@@ -13,4 +13,6 @@ MonoBehaviour:
   m_Name: Prefab Registry
   m_EditorClassIdentifier: 
   networkObjects:
-  - {fileID: 3712750382301171767, guid: 11d1c52f135091b48a2c222e090dc4bb, type: 3}
+  - {fileID: 1745913819377069639, guid: 017be7825c84942429f9164bdf3eb2a4, type: 3}
+  - {fileID: 2742030220783827068, guid: b391c4a4a54caad40a2dee870b317014, type: 3}
+  - {fileID: 6605339696945408472, guid: cee7bb62cf0e00b40816d741ad07f348, type: 3}
