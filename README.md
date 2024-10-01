@@ -3,6 +3,8 @@ This project was created during a Uni course at HTW, Berlin.
 
 The pre-release can be downloaded [here](https://github.com/AyuCalices/IC2UnityClient/releases/tag/1.0.0) (Latest version: Version 1.0.0).
 
+The Server can be found [here](https://github.com/AyuCalices/IC2Server).
+
 ## Credits :bow:
 :wrench: **Utils**
 * Demigiant: [DOTween (HOTween v2)](https://assetstore.unity.com/packages/tools/animation/dotween-hotween-v2-27676?srsltid=AfmBOoqOpiu89UH14N1n9spA2K3K6kJ0i5spNAal4Zn4mTTsEdGavFR5)
