@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Durak.unity
+    guid: eb9c5666be973c7458842a1b05b7d7bb
   m_configObjects: {}

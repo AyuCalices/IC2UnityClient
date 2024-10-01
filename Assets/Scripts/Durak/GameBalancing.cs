@@ -54,6 +54,7 @@ namespace Durak
             private set => customSeed = value;
         }
         
+#if UNITY_EDITOR
         
         [ContextMenu("Utility: Find All Card Generators")]
         private void FillType()
@@ -84,5 +85,7 @@ namespace Durak
             // Return all found instances as an array
             return foundGenerators;
         }
+#endif
+        
     }
 }

@@ -66,7 +66,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: cd0c2cd0046800f4287f1498b07c249a, type: 2}
   - {fileID: 11400000, guid: c9174259fc2fca845b901dea44ce281e, type: 2}
   - {fileID: 11400000, guid: a9bcd3260237b4a4a87b427b8b4ca483, type: 2}
-  maxDeckCardCount: 5
-  playerHandCardCount: 3
+  maxDeckCardCount: 256
+  playerHandCardCount: 6
   useCustomSeed: 0
   customSeed: 0

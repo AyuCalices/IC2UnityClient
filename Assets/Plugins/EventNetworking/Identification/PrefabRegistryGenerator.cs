@@ -5,6 +5,8 @@ using UnityEngine;
 
 namespace Plugins.EventNetworking.Identification
 {
+#if UNITY_EDITOR
+    
     [InitializeOnLoad]
     public class PrefabRegistryGenerator : AssetPostprocessor
     {
@@ -138,4 +140,6 @@ namespace Plugins.EventNetworking.Identification
             }
         }
     }
+    
+#endif
 }

@@ -3,6 +3,8 @@ using UnityEngine;
 
 namespace Plugins.EventNetworking.Identification
 {
+#if UNITY_EDITOR
+    
     [InitializeOnLoad]
     public class ObjectChangeEventListener
     {
@@ -244,4 +246,6 @@ namespace Plugins.EventNetworking.Identification
             }
         }*/
     }
+    
+#endif
 }

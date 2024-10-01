@@ -14,7 +14,8 @@ public class EditorHelper : MonoBehaviour
     // Paths to the input (source) and output (destination) folders
     public string outputFolderPath = "Assets/Data/Cards";
     
-
+#if UNITY_EDITOR
+    
     [ContextMenu("Generate")]
     void CropAllImagesInFolder()
     {
@@ -57,4 +58,6 @@ public class EditorHelper : MonoBehaviour
             Debug.Log("Cropped image ScriptableObject saved to: " + assetPath);
         }
     }
+    
+#endif
 }
